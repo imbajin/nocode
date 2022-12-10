@@ -22,6 +22,10 @@ jobs:
         with:
           java-version: '11'
           distribution: 'adopt'
+          server-id: apache.snapshots.https
+          server-username: ${{ secrets.RELEASE_USERNAME }}
+          server-password: ${{ secrets.RELEASE_PASSWORD }}
+          gpg-private-key: ${{ secrets.GPG_PRIVATE_KEY }}
        
       - name: Import GPG key
         id: import_gpg
@@ -47,7 +51,7 @@ jobs:
         run: mkdir -p ~/.m2 && echo '${{ secrets.M2_SETTINGS }}' > ~/.m2/settings.xml
         
       - name: Package & Release to maven
-        run: mvn clean install -Papache-release -DskipTests 
+        run: mvn clean install -Papache-release -DskipTests -ntp
         
       #- name: Release to svn
       #  run: computer-dist/scripts/apache-release.sh ${{ github.event.inputs.release_version }} ${{ secrets.RELEASE_USERNAME }} ${{ secrets.RELEASE_PASSWORD }}
