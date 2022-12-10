@@ -1,0 +1,53 @@
+name: Release Apache Hugegraph-Toolchain
+
+on:
+  workflow_dispatch:
+    inputs:
+      repository_url:
+        required: true
+        default: 'apache/hugegraph-toolchain'
+      repository_branch:
+        required: true
+        default: 'master'
+      release_version:
+        required: true
+        default: '1.0.0'
+        
+jobs:
+  build:
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Install JDK 11
+        uses: actions/setup-java@v3
+        with:
+          java-version: '11'
+          distribution: 'adopt'
+       
+      - name: Import GPG key
+        id: import_gpg
+        uses: crazy-max/ghaction-import-gpg@v5
+        with:
+          gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
+          
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          repository: ${{ github.event.inputs.repository_url }}
+          ref: ${{ github.event.inputs.repository_branch }}
+          fetch-depth: 2
+
+      - name: Cache Maven packages
+        uses: actions/cache@v3
+        with:
+          path: ~/.m2/repository
+          key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
+          restore-keys: ${{ runner.os }}-m2
+          
+      - name: Replace maven settings
+        run: mkdir -p ~/.m2 && echo '${{ secrets.M2_SETTINGS }}' > ~/.m2/settings.xml
+        
+      - name: Package & Release to maven
+        run: mvn clean deploy -Papache-release -DskipTests
+        
+      - name: Release to svn
+        run: hugegraph-dist/scripts/apache-release.sh ${{ github.event.inputs.release_version }} ${{ secrets.RELEASE_USERNAME }} ${{ secrets.RELEASE_PASSWORD }}
