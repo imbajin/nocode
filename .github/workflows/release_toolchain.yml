@@ -22,10 +22,6 @@ jobs:
         with:
           java-version: '11'
           distribution: 'adopt'
-          server-id: apache.release.https
-          server-username: ${{ secrets.RELEASE_USERNAME }}
-          server-password: ${{ secrets.RELEASE_PASSWORD }}
-          gpg-private-key: ${{ secrets.GPG_PRIVATE_KEY }}
        
       - name: Import GPG key
         id: import_gpg
@@ -51,9 +47,7 @@ jobs:
         run: mkdir -p ~/.m2 && echo '${{ secrets.M2_SETTINGS }}' > ~/.m2/settings.xml
         
       - name: Package & Release to maven
-        #run: export GPG_TTY=$(tty) && echo $GPG_TTY && mvn clean install -Papache-release -DskipTests -ntp
-        #run: echo "pinentry-mode loopback" >> ~/.gnupg/gpg.conf && cat ~/.gnupg/gpg.conf && mvn clean install -Papache-release -DskipTests -ntp
-        run: mvn clean install -Papache-release -DskipTests -ntp -e -X
+        run: mvn clean install -Papache-release -DskipTests -ntp -e
         
       - name: Release to svn
         run: hugegraph-dist/scripts/apache-release.sh ${{ github.event.inputs.release_version }} ${{ secrets.RELEASE_USERNAME }} ${{ secrets.RELEASE_PASSWORD }}
