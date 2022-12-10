@@ -47,8 +47,8 @@ jobs:
         run: mkdir -p ~/.m2 && echo '${{ secrets.M2_SETTINGS }}' > ~/.m2/settings.xml
         
       - name: Package & Release to maven
-        run: export GPG_TTY=$(tty) && mvn clean install -Papache-release -DskipTests -ntp
-        #run: mvn clean deploy -Papache-release -DskipTests
+        #run: export GPG_TTY=$(tty) && mvn clean install -Papache-release -DskipTests -ntp
+        run: mvn clean install -Papache-release -DskipTests -ntp
         
       - name: Release to svn
         run: hugegraph-dist/scripts/apache-release.sh ${{ github.event.inputs.release_version }} ${{ secrets.RELEASE_USERNAME }} ${{ secrets.RELEASE_PASSWORD }}
