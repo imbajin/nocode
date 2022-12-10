@@ -50,7 +50,7 @@ jobs:
       - name: Package & Release to maven
         #run: export GPG_TTY=$(tty) && echo $GPG_TTY && mvn clean install -Papache-release -DskipTests -ntp
         #run: echo "pinentry-mode loopback" >> ~/.gnupg/gpg.conf && cat ~/.gnupg/gpg.conf && mvn clean install -Papache-release -DskipTests -ntp
-        run: mvn clean install -Papache-release -DskipTests -ntp
+        run: mvn clean install -Papache-release -DskipTests -ntp -e -X
         
       - name: Release to svn
         run: hugegraph-dist/scripts/apache-release.sh ${{ github.event.inputs.release_version }} ${{ secrets.RELEASE_USERNAME }} ${{ secrets.RELEASE_PASSWORD }}
