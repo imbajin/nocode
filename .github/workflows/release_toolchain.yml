@@ -47,7 +47,7 @@ jobs:
         run: mkdir -p ~/.m2 && ${{ secrets.M2_SETTINGS }} > ~/.m2/settings.xml
         
       - name: Package & Release to maven
-        run: mvn clean install -Papache-release -DskipTests -ntp
+        run: export GPG_TTY=$(tty) && mvn clean install -Papache-release -DskipTests -ntp
         #run: mvn clean deploy -Papache-release -DskipTests
         
       - name: Release to svn
