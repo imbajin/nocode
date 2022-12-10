@@ -8,7 +8,7 @@ on:
         default: 'apache/hugegraph-toolchain'
       repository_branch:
         required: true
-        default: 'before-release'
+        default: 'release-1.0.0'
       release_version:
         required: true
         default: '1.0.0'
@@ -22,7 +22,7 @@ jobs:
         with:
           java-version: '11'
           distribution: 'adopt'
-          server-id: apache.snapshots.https
+          server-id: apache.release.https
           server-username: ${{ secrets.RELEASE_USERNAME }}
           server-password: ${{ secrets.RELEASE_PASSWORD }}
           gpg-private-key: ${{ secrets.GPG_PRIVATE_KEY }}
