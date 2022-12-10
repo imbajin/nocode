@@ -44,7 +44,7 @@ jobs:
           restore-keys: ${{ runner.os }}-m2
           
       - name: Replace maven settings
-        run: mkdir -p ~/.m2 && ${{ secrets.M2_SETTINGS }} > ~/.m2/settings.xml
+        run: mkdir -p ~/.m2 && echo '${{ secrets.M2_SETTINGS }}' > ~/.m2/settings.xml
         
       - name: Package & Release to maven
         run: export GPG_TTY=$(tty) && mvn clean install -Papache-release -DskipTests -ntp
