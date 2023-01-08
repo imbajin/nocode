@@ -1,4 +1,4 @@
-name: validate apache release
+name: Validate Apache Release
 
 on:
   workflow_dispatch:
@@ -23,6 +23,13 @@ jobs:
         with:
           java-version: ${{ matrix.JAVA_VERSION }}
           distribution: 'adopt'
+      - name: Cache Maven packages
+        uses: actions/cache@v3
+        with:
+          path: ~/.m2
+          key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
+          restore-keys: ${{ runner.os }}-m2
+
       # TODO: do we need svn & gpg environment?
       - name: Test Building Source & Running
         run: |
@@ -32,6 +39,6 @@ jobs:
           echo "TODO: separate script to test binary"
 
     strategy:
-      fail-fast: true
+      fail-fast: false
       matrix:
         JAVA_VERSION: [ '8', '11' ]
