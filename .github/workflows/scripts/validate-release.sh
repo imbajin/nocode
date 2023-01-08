@@ -87,6 +87,7 @@ for i in *src.tar.gz; do
 done
 
 #### step4.3: run the compiled packages in server
+ls -lh
 cd ./*hugegraph-incubating*src/*hugegraph*"${RELEASE_VERSION}" || exit
 bin/init-store.sh && sleep 1
 bin/start-hugegraph.sh || exit
