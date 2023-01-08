@@ -70,12 +70,13 @@ for i in *src.tar.gz; do
   fi
 
   #### step4.2: compile the packages
-  mvn clean package -DskipTests || exit
+  mvn clean package -DskipTests -ntp
   cd .. || exit
 done
 
 #### step4.3: run the compiled packages in server
 cd ./*hugegraph-incubating*src/*hugegraph*"${RELEASE_VERSION}" || exit
+bin/init-store.sh && sleep 1
 bin/start-hugegraph.sh || exit
 sleep 5
 bin/stop-hugegraph.sh
