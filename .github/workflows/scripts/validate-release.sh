@@ -60,13 +60,12 @@ for i in *src.tar.gz; do
     echo "The package name should include incubating" && exit 1
   fi
   # TODO: remove the case when dir bug fix
-  if [[ $i =~ "hugegraph-incubating" ]]; then
+  if [[ $i == "apache-hugegraph-incubating-1.0.0-src.tar.gz" ]]; then
     mkdir ./apache-hugegraph-incubating-1.0.0-src
     tar xzf "$i" -C ./apache-hugegraph-incubating-1.0.0-src --strip-components 1 || exit
   else
     tar xzf "$i" || exit
   fi
-
   cd "$(basename "$i" .tar.gz)" || exit
 
   #### step4.1: check the directory include "NOTICE" and "LICENSE" file
@@ -79,10 +78,10 @@ for i in *src.tar.gz; do
 
   #### step4.2: compile the packages
   # skip compute module in java8
-  if [[ $JAVA_VERSION == 8 && "$i" =~ "compute" ]]; then
+  if [[ $JAVA_VERSION == 8 && "$i" =~ "computer" ]]; then
     continue
   fi
-  mvn clean package -DskipTests || exit
+  mvn clean package -DskipTests -ntp || exit
   cd .. || exit
 done
 
