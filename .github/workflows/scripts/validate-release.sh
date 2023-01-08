@@ -23,6 +23,7 @@
 URL_PREFIX="https://dist.apache.org/repos/dist/dev/incubator/hugegraph/"
 # release version (input by committer)
 RELEASE_VERSION=$1
+JAVA_VERSION=$2
 # git release branch (check it carefully)
 #GIT_BRANCH="release-${RELEASE_VERSION}"
 
@@ -58,7 +59,14 @@ for i in *src.tar.gz; do
   if [[ ! "$i" =~ "incubating" ]]; then
     echo "The package name should include incubating" && exit 1
   fi
-  tar xzf "$i" || exit
+  # TODO: remove the case when dir bug fix
+  if [[ $i =~ "hugegraph-incubating" ]]; then
+    mkdir ./apache-hugegraph-incubating-1.0.0-src
+    tar xzf "$i" -C ./apache-hugegraph-incubating-1.0.0-src --strip-components 1 || exit
+  else
+    tar xzf "$i" || exit
+  fi
+
   cd "$(basename "$i" .tar.gz)" || exit
 
   #### step4.1: check the directory include "NOTICE" and "LICENSE" file
@@ -70,7 +78,11 @@ for i in *src.tar.gz; do
   fi
 
   #### step4.2: compile the packages
-  mvn clean package -DskipTests -ntp
+  # skip compute module in java8
+  if [[ $JAVA_VERSION == 8 && "$i" =~ "compute" ]]; then
+    continue
+  fi
+  mvn clean package -DskipTests || exit
   cd .. || exit
 done
 
