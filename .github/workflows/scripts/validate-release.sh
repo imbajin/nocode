@@ -75,7 +75,7 @@ for i in *src.tar.gz; do
     cd .. && echo "skip computer module in java8"
     continue
   fi
-  mvn package -DskipTests -ntp && ls -lh ../
+  mvn package -DskipTests -ntp && ls -lh
   cd .. || exit
 done
 
@@ -89,8 +89,26 @@ bin/stop-hugegraph.sh
 cd .. || exit
 
 #### step4.4: run the compiled packages in toolchain (include loader/tool/hubble)
-#cd ./*toolchain*src/*toolchain*"${RELEASE_VERSION}" || exit
-# loader
+cd ./*toolchain*src || exit
+(tar xzf target/*toolchain*.gz && cd ./*toolchain*"${RELEASE_VERSION}") || exit
+
+##### 4.4.1 test loader
+cd ./*loader*"${RELEASE_VERSION}" || exit
+bin/hugegraph-loader.sh -f ./example/file/struct.json  -s ./example/file/schema.groovy
+cd .. || exit
+
+##### 4.4.2 test tool
+cd ./*tool*"${RELEASE_VERSION}" || exit
+bin/hugegraph gremlin-execute --script 'g.V().count()'
+bin/hugegraph task-list
+bin/hugegraph backup -t all --directory ./backup-test
+cd .. || exit
+
+##### 4.4.3 test hubble
+cd ./*hubble*"${RELEASE_VERSION}" || exit
+# TODO: add hubble doc & test it
+cat conf/hugegraph-hubble.propertie && bin/start-hubble.sh
+cd .. || exit
 
 # step5: validate the binary packages
 #### step5.0: check the directory include "incubating"
