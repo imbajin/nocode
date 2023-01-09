@@ -45,21 +45,18 @@ gpg --import KEYS || exit
 for i in *.tar.gz; do
   echo "$i"
   shasum -a 512 --check "$i".sha512 || exit
-done
-
-for i in *.tar.gz; do
-  echo "$i"
   eval gpg "${GPG_OPT}" --verify "$i".asc "$i" || exit
 done
 
 # step4: validate source packages
+ls -lh ./*.tar.gz
 for i in *src.tar.gz; do
   echo "$i"
   #### step4.0: check the directory include "incubating"
   if [[ ! "$i" =~ "incubating" ]]; then
     echo "The package name should include incubating" && exit 1
   fi
-  tar xzf "$i" || exit
+  tar xzvf "$i" || exit
   cd "$(basename "$i" .tar.gz)" || exit
 
   #### step4.1: check the directory include "NOTICE" and "LICENSE" file
@@ -90,7 +87,7 @@ bin/stop-hugegraph.sh
 cd .. || exit
 
 #### step4.4: run the compiled packages in toolchain (include loader/tool/hubble)
-cd ./*hugegraph-toolchain*src/*hugegraph*"${RELEASE_VERSION}" || exit
+cd ./*toolchain*src/*hugegraph*"${RELEASE_VERSION}" || exit
 # loader
 
 # step5: validate the binary packages
