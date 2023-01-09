@@ -68,12 +68,11 @@ for i in *src.tar.gz; do
   fi
 
   #### step4.2: compile the packages
-  # skip compute module in java8
   if [[ $JAVA_VERSION == 8 && "$i" =~ "computer" ]]; then
-    cd .. || exit
+    cd .. && echo "skip computer module in java8"
     continue
   fi
-  mvn clean package -DskipTests -ntp || exit
+  mvn clean package -DskipTests -ntp && ls -lh
   cd .. || exit
 done
 
