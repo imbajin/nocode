@@ -37,10 +37,11 @@ cd dist/"$RELEASE_VERSION" || exit
 shasum --version 1>/dev/null || exit
 gpg --version 1>/dev/null || exit
 
-wget https://downloads.apache.org/incubator/hugegraph/KEYS
-gpg --import KEYS || exit
-# trust all public keys in gpg
-gpg --list-keys | grep pub | awk '{print $2}' | xargs -I {} gpg --edit-key {} trust quit
+wget https://downloads.apache.org/incubator/hugegraph/KEYS | gpg --import KEYS
+# trust all public keys in gpg list
+for key in $(gpg --list-keys --with-colons | awk -F: '/^pub/ {print $5}'); do
+    gpg --edit-key "$key" trust quit
+done
 
 # step3: check sha512 & gpg signature
 for i in *.tar.gz; do
@@ -73,7 +74,7 @@ for i in *src.tar.gz; do
     cd .. && echo "skip computer module in java8"
     continue
   fi
-  mvn clean package -DskipTests -ntp && ls -lh ../
+  mvn package -DskipTests -ntp && ls -lh ../
   cd .. || exit
 done
 
