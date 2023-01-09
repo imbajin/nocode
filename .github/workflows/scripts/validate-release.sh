@@ -14,11 +14,12 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
+#
 # This script is used to validate the release package, including:
 # 1. Check the release package name & content
-# 3. Check the release package sha512
-# 4. Check the release package gpg signature
+# 2. Check the release package sha512 & gpg signature
+# 3. Compile the source package & run server & toolchain
+# 4. Run server & toolchain in binary package
 
 URL_PREFIX="https://dist.apache.org/repos/dist/dev/incubator/hugegraph/"
 # release version (input by committer)
@@ -69,6 +70,10 @@ for i in *src.tar.gz; do
   fi
   if [[ ! -f "NOTICE" ]]; then
     echo "The package should include NOTICE file" && exit 1
+  fi
+  # ensure doesn't contains empty directory or file
+  if [[ $(find . -type d -empty | wc -l) -ne 0 ]]; then
+    echo "The package should not include empty directory" && exit 1
   fi
 
   #### step4.2: compile the packages
@@ -130,14 +135,18 @@ for i in *.tar.gz; do
   if [[ ! -f "NOTICE" ]]; then
     echo "The package should include NOTICE file" && exit 1
   fi
+  # ensure doesn't contains empty directory or file
+  if [[ $(find . -type d -empty | wc -l) -ne 0 ]]; then
+    echo "The package should not include empty directory" && exit 1
+  fi
   cd - || exit
 done
 
 #### step5.2: start the server
 cd ./*hugegraph-incubating*"${RELEASE_VERSION}" || exit
 bin/init-store.sh && sleep 1
-# kill the server by jps
-bin/stop-hugegraph.sh
+# kill the HugeGraphServer process by jps
+jps | grep HugeGraphServer | awk '{print $1}' | xargs kill -9
 bin/start-hugegraph.sh && ls ../
 cd - || exit
 
