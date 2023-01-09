@@ -110,7 +110,7 @@ cd .. || exit
 cd ./*hubble*"${RELEASE_VERSION}" || exit
 # TODO: add hubble doc & test it
 cat conf/hugegraph-hubble.properties && bin/start-hubble.sh
-cd .. || exit
+cd ../../../ || exit
 
 # step5: validate the binary packages
 #### step5.0: check the directory name include "incubating"
