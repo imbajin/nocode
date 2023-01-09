@@ -59,13 +59,7 @@ for i in *src.tar.gz; do
   if [[ ! "$i" =~ "incubating" ]]; then
     echo "The package name should include incubating" && exit 1
   fi
-  # TODO: remove the case when dir bug fix
-  if [[ $i == "apache-hugegraph-incubating-1.0.0-src.tar.gz" ]]; then
-    mkdir ./apache-hugegraph-incubating-1.0.0-src
-    tar xzf "$i" -C ./apache-hugegraph-incubating-1.0.0-src --strip-components 1 || exit
-  else
-    tar xzf "$i" || exit
-  fi
+  tar xzf "$i" || exit
   cd "$(basename "$i" .tar.gz)" || exit
 
   #### step4.1: check the directory include "NOTICE" and "LICENSE" file
