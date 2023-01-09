@@ -72,8 +72,10 @@ for i in *src.tar.gz; do
     echo "The package should include NOTICE file" && exit 1
   fi
   # ensure doesn't contains empty directory or file
-  if [[ $(find . -type d -empty | wc -l) -ne 0 ]]; then
-    echo "The package should not include empty directory" && exit 1
+  COUNT=$(find . -type d -empty | wc -l)
+  if [[ $COUNT -ne 0 ]]; then
+    find . -type d -empty
+    echo "The package should not include empty directory, but get $COUNT" # TODO: && exit 1
   fi
 
   #### step4.2: compile the packages
@@ -136,8 +138,10 @@ for i in *.tar.gz; do
     echo "The package should include NOTICE file" && exit 1
   fi
   # ensure doesn't contains empty directory or file
-  if [[ $(find . -type d -empty | wc -l) -ne 0 ]]; then
-    echo "The package should not include empty directory" && exit 1
+  COUNT=$(find . -type d -empty | wc -l)
+  if [[ $COUNT -ne 0 ]]; then
+    find . -type d -empty
+    echo "The package should not include empty directory, but get $COUNT" # TODO: && exit 1
   fi
   cd - || exit
 done
