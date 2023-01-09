@@ -42,7 +42,7 @@ gpg --import KEYS
 # TODO: how to trust all public keys in gpg list, currently only trust the first one
 gpg --list-keys --with-colons | grep pub | cut -d: -f5 | xargs -I {} gpg --edit-key {} trust quit
 for key in $(gpg --list-keys --with-colons | awk -F: '/^pub/ {print $5}'); do
-    gpg --edit-key "$key" trust quit
+  gpg --edit-key "$key" trust quit
 done
 
 # step3: check sha512 & gpg signature
@@ -56,7 +56,7 @@ done
 ls -lh ./*.tar.gz
 for i in *src.tar.gz; do
   echo "$i"
-  #### step4.0: check the directory include "incubating"
+  #### step4.0: check the directory name include "incubating"
   if [[ ! "$i" =~ "incubating" ]]; then
     echo "The package name should include incubating" && exit 1
   fi
@@ -95,25 +95,73 @@ ls -lh
 
 ##### 4.4.1 test loader
 cd ./*loader*"${RELEASE_VERSION}" || exit
-bin/hugegraph-loader.sh -f ./example/file/struct.json  -s ./example/file/schema.groovy
+bin/hugegraph-loader.sh -f ./example/file/struct.json -s ./example/file/schema.groovy \
+  -g hugegraph || exit
 cd .. || exit
 
 ##### 4.4.2 test tool
 cd ./*tool*"${RELEASE_VERSION}" || exit
-bin/hugegraph gremlin-execute --script 'g.V().count()'
-bin/hugegraph task-list
-bin/hugegraph backup -t all --directory ./backup-test
+bin/hugegraph gremlin-execute --script 'g.V().count()' || exit
+bin/hugegraph task-list || exit
+bin/hugegraph backup -t all --directory ./backup-test || exit
 cd .. || exit
 
 ##### 4.4.3 test hubble
 cd ./*hubble*"${RELEASE_VERSION}" || exit
 # TODO: add hubble doc & test it
-cat conf/hugegraph-hubble.propertie && bin/start-hubble.sh
+cat conf/hugegraph-hubble.properties && bin/start-hubble.sh
 cd .. || exit
 
 # step5: validate the binary packages
-#### step5.0: check the directory include "incubating"
+#### step5.0: check the directory name include "incubating"
 #### step5.1: check the directory include "NOTICE" and "LICENSE" file
-#### step5.4: run the binary packages
+rm -rf ./*src* && ls -lh
+for i in *.tar.gz; do
+  echo "$i"
+  if [[ ! "$i" =~ "incubating" ]]; then
+    echo "The package name should include incubating" && exit 1
+  fi
+  tar xzvf "$i" || exit
+
+  cd "$(basename "$i" .tar.gz)" && ls -lh || exit
+  if [[ ! -f "LICENSE" ]]; then
+    echo "The package should include LICENSE file" && exit 1
+  fi
+  if [[ ! -f "NOTICE" ]]; then
+    echo "The package should include NOTICE file" && exit 1
+  fi
+  cd - || exit
+done
+
+#### step5.2: start the server
+cd ./*hugegraph-incubating*"${RELEASE_VERSION}" || exit
+bin/init-store.sh && sleep 1
+# kill the server by jps
+bin/stop-hugegraph.sh
+bin/start-hugegraph.sh && ls ../
+cd - || exit
+
+#### step5.2: running toolchain
+cd ./*toolchain*"${RELEASE_VERSION}" || exit
+ls -lh
+##### 5.2.1 test loader
+cd ./*loader*"${RELEASE_VERSION}" || exit
+bin/hugegraph-loader.sh -f ./example/file/struct.json -s ./example/file/schema.groovy \
+  -g hugegraph || exit
+cd - || exit
+
+##### 5.2.2 test tool
+cd ./*tool*"${RELEASE_VERSION}" || exit
+bin/hugegraph gremlin-execute --script 'g.V().count()' || exit
+bin/hugegraph task-list || exit
+bin/hugegraph backup -t all --directory ./backup-test || exit
+cd - || exit
+
+##### 5.2.3 test hubble
+cd ./*hubble*"${RELEASE_VERSION}" || exit
+# TODO: add hubble doc & test it
+cat conf/hugegraph-hubble.properties
+bin/stop-hubble.sh && bin/start-hubble.sh
+cd - || exit
 
 echo "Finish validate, please check all steps manually again!"
