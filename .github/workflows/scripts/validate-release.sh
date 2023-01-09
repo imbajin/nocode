@@ -39,7 +39,7 @@ gpg --version 1>/dev/null || exit
 
 wget https://downloads.apache.org/incubator/hugegraph/KEYS || exit
 gpg --import KEYS
-# trust all public keys in gpg list
+# TODO: how to trust all public keys in gpg list, currently only trust the first one
 for key in $(gpg --list-keys --with-colons | awk -F: '/^pub/ {print $5}'); do
     gpg --edit-key "$key" trust quit
 done
@@ -89,7 +89,7 @@ bin/stop-hugegraph.sh
 cd .. || exit
 
 #### step4.4: run the compiled packages in toolchain (include loader/tool/hubble)
-cd ./*toolchain*src/*hugegraph*"${RELEASE_VERSION}" || exit
+#cd ./*toolchain*src/*toolchain*"${RELEASE_VERSION}" || exit
 # loader
 
 # step5: validate the binary packages
