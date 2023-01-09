@@ -40,6 +40,7 @@ gpg --version 1>/dev/null || exit
 wget https://downloads.apache.org/incubator/hugegraph/KEYS || exit
 gpg --import KEYS
 # TODO: how to trust all public keys in gpg list, currently only trust the first one
+gpg --list-keys --with-colons | grep pub | cut -d: -f5 | xargs -I {} gpg --edit-key {} trust quit
 for key in $(gpg --list-keys --with-colons | awk -F: '/^pub/ {print $5}'); do
     gpg --edit-key "$key" trust quit
 done
@@ -83,9 +84,7 @@ done
 ls -lh
 cd ./*hugegraph-incubating*src/*hugegraph*"${RELEASE_VERSION}" || exit
 bin/init-store.sh && sleep 1
-bin/start-hugegraph.sh || exit
-sleep 5
-bin/stop-hugegraph.sh
+bin/start-hugegraph.sh && ls ../
 cd .. || exit
 
 #### step4.4: run the compiled packages in toolchain (include loader/tool/hubble)
