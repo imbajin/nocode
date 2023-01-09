@@ -37,7 +37,8 @@ cd dist/"$RELEASE_VERSION" || exit
 shasum --version 1>/dev/null || exit
 gpg --version 1>/dev/null || exit
 
-wget https://downloads.apache.org/incubator/hugegraph/KEYS | gpg --import KEYS
+wget https://downloads.apache.org/incubator/hugegraph/KEYS || exit
+gpg --import KEYS
 # trust all public keys in gpg list
 for key in $(gpg --list-keys --with-colons | awk -F: '/^pub/ {print $5}'); do
     gpg --edit-key "$key" trust quit
