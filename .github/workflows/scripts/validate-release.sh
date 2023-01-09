@@ -89,7 +89,9 @@ cd ../../ || exit
 
 #### step4.4: run the compiled packages in toolchain (include loader/tool/hubble)
 cd ./*toolchain*src || exit
+ls -lh ./*
 (tar xzf target/*toolchain*.gz && cd ./*toolchain*"${RELEASE_VERSION}") || exit
+ls -lh
 
 ##### 4.4.1 test loader
 cd ./*loader*"${RELEASE_VERSION}" || exit
