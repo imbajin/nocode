@@ -39,7 +39,8 @@ gpg --version 1>/dev/null || exit
 
 wget https://downloads.apache.org/incubator/hugegraph/KEYS
 gpg --import KEYS || exit
-# TODO: how to trust all public keys once?
+# trust all public keys in gpg
+gpg --list-keys | grep pub | awk '{print $2}' | xargs -I {} gpg --edit-key {} trust quit
 
 # step3: check sha512 & gpg signature
 for i in *.tar.gz; do
@@ -72,7 +73,7 @@ for i in *src.tar.gz; do
     cd .. && echo "skip computer module in java8"
     continue
   fi
-  mvn clean package -DskipTests -ntp && ls -lh
+  mvn clean package -DskipTests -ntp && ls -lh ../
   cd .. || exit
 done
 
