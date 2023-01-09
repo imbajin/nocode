@@ -84,8 +84,8 @@ done
 ls -lh
 cd ./*hugegraph-incubating*src/*hugegraph*"${RELEASE_VERSION}" || exit
 bin/init-store.sh && sleep 1
-bin/start-hugegraph.sh && ls ../
-cd .. || exit
+bin/start-hugegraph.sh && ls ../../
+cd ../../ || exit
 
 #### step4.4: run the compiled packages in toolchain (include loader/tool/hubble)
 cd ./*toolchain*src || exit
