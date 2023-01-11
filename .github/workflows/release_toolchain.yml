@@ -12,16 +12,20 @@ on:
       release_version:
         required: true
         default: '1.0.0'
+      deploy_maven:
+        required: true
+        default: 'false'
         
 jobs:
   build:
     runs-on: ubuntu-20.04
     steps:
-      - name: Install JDK 11
+      - name: Install JDK 8
         uses: actions/setup-java@v3
         with:
-          java-version: '11'
+          java-version: '8'
           distribution: 'adopt'
+          gpg-private-key: ${{ secrets.GPG_PRIVATE_KEY }}
        
       - name: Import GPG key
         id: import_gpg
@@ -42,12 +46,42 @@ jobs:
           path: ~/.m2/repository
           key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
           restore-keys: ${{ runner.os }}-m2
+
+      - name: Get Yarn path
+        id: yarn-cache-dir-path
+        run: echo "::set-output name=dir::$(yarn cache dir)"
+
+      - name: Cache Yarn packages
+        uses: actions/cache@v3
+        # use id to check `cache-hit` (`steps.yarn-cache.outputs.cache-hit != 'true'`)
+        id: yarn-cache
+        with:
+          path: ${{ steps.yarn-cache-dir-path.outputs.dir }}
+          key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-yarn-
+
+      - name: Cache Python packages
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
           
       - name: Replace maven settings
         run: mkdir -p ~/.m2 && echo '${{ secrets.M2_SETTINGS }}' > ~/.m2/settings.xml
-        
+
+      - name: Package Only
+        if: github.event.inputs.deploy_maven == 'false'
+        run: echo "just building" && mvn clean package -Papache-release -DskipTests -ntp -e || exit
+
       - name: Package & Release to maven
-        run: mvn clean install -Papache-release -DskipTests -ntp -e
+        if: github.event.inputs.deploy_maven == 'true'
+        #run: export GPG_TTY=$(tty) && echo $GPG_TTY && mvn clean install -Papache-release -DskipTests -ntp
+        #run: echo "pinentry-mode loopback" >> ~/.gnupg/gpg.conf && cat ~/.gnupg/gpg.conf && mvn clean install -Papache-release -DskipTests -ntp
+        run: echo "deploy to maven" && mvn clean deploy -Papache-release -DskipTests -ntp -e || exit
+        
         
       - name: Release to svn
         run: hugegraph-dist/scripts/apache-release.sh ${{ github.event.inputs.release_version }} ${{ secrets.RELEASE_USERNAME }} ${{ secrets.RELEASE_PASSWORD }}
