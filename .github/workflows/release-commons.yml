@@ -52,7 +52,7 @@ jobs:
 
       - name: Package Only
         if: github.event.inputs.deploy_maven == 'false'
-        run: echo "just building" && mvn clean package -Papache-release -DskipTests -ntp -e || exit
+        run: (echo "just building" && mvn clean package -Papache-release -DskipTests -e) || exit
 
       - name: Package & Release to maven
         if: github.event.inputs.deploy_maven == 'true'
