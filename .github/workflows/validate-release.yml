@@ -3,12 +3,13 @@ name: Validate Apache Release
 on:
   workflow_dispatch:
     inputs:
-      current_version:
+      release_version:
         required: true
         default: '1.0.0'
       deploy_maven:
         required: true
-        default: 'false'
+        default: false
+        type: boolean
 
 jobs:
   build:
@@ -46,7 +47,7 @@ jobs:
       # TODO: do we need svn & gpg environment?
       - name: Test Building Source & Running
         run: |
-          bash $SCRIPT_PATH/validate-release.sh ${{ github.event.inputs.current_version }} ${{ matrix.JAVA_VERSION }}
+          bash $SCRIPT_PATH/validate-release.sh ${{ inputs.release_version }} ${{ matrix.JAVA_VERSION }}
       - name: Test Running Binary
         run: |
           echo "TODO: separate script to test binary"
