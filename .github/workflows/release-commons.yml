@@ -15,6 +15,7 @@ on:
       deploy_maven:
         required: true
         type: boolean
+        description: whether publish to maven nexus
         default: false
         
 jobs:
@@ -51,11 +52,11 @@ jobs:
         run: mkdir -p ~/.m2 && echo '${{ secrets.M2_SETTINGS }}' > ~/.m2/settings.xml
 
       - name: Package Only
-        if: github.event.inputs.deploy_maven == false
+        if: ${{ !inputs.deploy_maven }}
         run: (echo "just building" && mvn clean package -Papache-release -DskipTests -ntp -e) || exit
 
       - name: Package & Release to maven
-        if: github.event.inputs.deploy_maven == true
+        if: ${{ inputs.deploy_maven }}
         #run: export GPG_TTY=$(tty) && echo $GPG_TTY && mvn clean install -Papache-release -DskipTests -ntp
         #run: echo "pinentry-mode loopback" >> ~/.gnupg/gpg.conf && cat ~/.gnupg/gpg.conf && mvn clean install -Papache-release -DskipTests -ntp
         run: echo "deploy to maven" && mvn clean deploy -Papache-release -DskipTests -ntp -e || exit        
