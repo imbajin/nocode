@@ -14,7 +14,8 @@ on:
         default: '1.0.0'
       deploy_maven:
         required: true
-        default: 'false'
+        type: boolean
+        default: false
         
 jobs:
   build:
@@ -35,8 +36,8 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
         with:
-          repository: ${{ github.event.inputs.repository_url }}
-          ref: ${{ github.event.inputs.repository_branch }}
+          repository: ${{ inputs.repository_url }}
+          ref: ${{ inputs.repository_branch }}
           fetch-depth: 2
 
       - name: Cache Maven packages
@@ -50,14 +51,14 @@ jobs:
         run: mkdir -p ~/.m2 && echo '${{ secrets.M2_SETTINGS }}' > ~/.m2/settings.xml
 
       - name: Package Only
-        if: github.event.inputs.deploy_maven == 'false'
+        if: github.event.inputs.deploy_maven == false
         run: (echo "just building" && mvn clean package -Papache-release -DskipTests -ntp -e) || exit
 
       - name: Package & Release to maven
-        if: github.event.inputs.deploy_maven == 'true'
+        if: github.event.inputs.deploy_maven == true
         #run: export GPG_TTY=$(tty) && echo $GPG_TTY && mvn clean install -Papache-release -DskipTests -ntp
         #run: echo "pinentry-mode loopback" >> ~/.gnupg/gpg.conf && cat ~/.gnupg/gpg.conf && mvn clean install -Papache-release -DskipTests -ntp
         run: echo "deploy to maven" && mvn clean deploy -Papache-release -DskipTests -ntp -e || exit        
         
       - name: Release to svn
-        run: hugegraph-dist/scripts/apache-release.sh ${{ github.event.inputs.release_version }} ${{ secrets.RELEASE_USERNAME }} ${{ secrets.RELEASE_PASSWORD }}
+        run: hugegraph-dist/scripts/apache-release.sh ${{ inputs.release_version }} ${{ secrets.RELEASE_USERNAME }} ${{ secrets.RELEASE_PASSWORD }}
