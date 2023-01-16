@@ -42,7 +42,7 @@ gpg --version 1>/dev/null || exit
 wget https://downloads.apache.org/incubator/hugegraph/KEYS || exit
 gpg --import KEYS
 # TODO: how to trust all public keys in gpg list, currently only trust the first one
-#echo -e "5\ny\n" | gpg --batch --command-fd 0 --edit-key $USER trust
+echo -e "5\ny\n" | gpg --batch --command-fd 0 --edit-key $USER trust
 
 echo "trust all pk"
 for key in $(gpg --no-tty --list-keys --with-colons | awk -F: '/^pub/ {print $5}'); do
