@@ -1,4 +1,4 @@
-name: Release hugegraph-computer
+name: Release Computer(HG)
 
 on:
   workflow_dispatch:
@@ -12,20 +12,21 @@ on:
       release_version:
         required: true
         default: '1.0.0'
+      deploy_maven:
+        required: true
+        type: boolean
+        description: whether publish to maven nexus
+        default: false
         
 jobs:
   build:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     steps:
       - name: Install JDK 11
         uses: actions/setup-java@v3
         with:
           java-version: '11'
           distribution: 'adopt'
-          server-id: apache.snapshots.https
-          server-username: ${{ secrets.RELEASE_USERNAME }}
-          server-password: ${{ secrets.RELEASE_PASSWORD }}
-          gpg-private-key: ${{ secrets.GPG_PRIVATE_KEY }}
        
       - name: Import GPG key
         id: import_gpg
@@ -36,8 +37,8 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
         with:
-          repository: ${{ github.event.inputs.repository_url }}
-          ref: ${{ github.event.inputs.repository_branch }}
+          repository: ${{ inputs.repository_url }}
+          ref: ${{ inputs.repository_branch }}
           fetch-depth: 2
 
       - name: Cache Maven packages
@@ -50,8 +51,13 @@ jobs:
       - name: Replace maven settings
         run: mkdir -p ~/.m2 && echo '${{ secrets.M2_SETTINGS }}' > ~/.m2/settings.xml
         
+      - name: Package Only
+        if: ${{ !inputs.deploy_maven }}
+        run: (echo "just building" && mvn clean package -Papache-release -DskipTests -ntp -e) || exit
+
       - name: Package & Release to maven
-        run: mvn clean install -Papache-release -DskipTests -ntp
+        if: ${{ inputs.deploy_maven }}
+        run: echo "deploy to maven" && mvn clean deploy -Papache-release -DskipTests -e || exit 
         
       #- name: Release to svn
-      #  run: computer-dist/scripts/apache-release.sh ${{ github.event.inputs.release_version }} ${{ secrets.RELEASE_USERNAME }} ${{ secrets.RELEASE_PASSWORD }}
+      #  run: computer-dist/scripts/apache-release.sh ${{ inputs.release_version }} ${{ secrets.RELEASE_USERNAME }} ${{ secrets.RELEASE_PASSWORD }}
