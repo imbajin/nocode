@@ -8,7 +8,7 @@ on:
         default: 'apache/hugegraph-computer'
       repository_branch:
         required: true
-        default: 'master'
+        default: 'tmp-release'
       release_version:
         required: true
         default: '1.0.0'
