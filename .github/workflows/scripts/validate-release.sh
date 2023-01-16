@@ -43,8 +43,9 @@ gpg --import KEYS
 # TODO: how to trust all public keys in gpg list, currently only trust the first one
 echo -e "5\ny\n" | gpg --no-tty --command-fd 0 --edit-key $3 trust
 
+echo "trust all pk"
 for key in $(gpg --no-tty --list-keys --with-colons | awk -F: '/^pub/ {print $5}'); do
-  echo -e "5\ny\n" | gpg --no-tty --edit-key "$key" trust
+  echo -e "5\ny\n" | gpg --no-tty --command-fd 0 --edit-key "$key" trust
 done
 
 # step3: check sha512 & gpg signature
