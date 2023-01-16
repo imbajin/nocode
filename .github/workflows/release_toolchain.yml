@@ -27,7 +27,6 @@ jobs:
         with:
           java-version: '8'
           distribution: 'adopt'
-          gpg-private-key: ${{ secrets.GPG_PRIVATE_KEY }}
        
       - name: Import GPG key
         id: import_gpg
