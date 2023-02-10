@@ -8,10 +8,10 @@ on:
         default: 'apache/hugegraph-computer'
       repository_branch:
         required: true
-        default: 'tmp-release'
+        default: 'release-1.0.0-rc2'
       release_version:
         required: true
-        default: '1.0.0'
+        default: '1.0.0-rc2'
       deploy_maven:
         required: true
         type: boolean
