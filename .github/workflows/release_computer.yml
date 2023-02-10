@@ -11,7 +11,7 @@ on:
         default: 'release-1.0.0-rc2'
       release_version:
         required: true
-        default: '1.0.0-rc2'
+        default: '1.0.0'
       deploy_maven:
         required: true
         type: boolean
