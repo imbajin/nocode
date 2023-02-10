@@ -15,7 +15,7 @@ on:
       deploy_maven:
         required: true
         type: boolean
-        description: whether publish to maven nexus
+        description: publish to maven nexus
         default: false
         
 jobs:
