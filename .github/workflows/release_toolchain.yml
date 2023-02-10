@@ -79,7 +79,7 @@ jobs:
 
       - name: Package & Release to maven
         if: ${{ inputs.deploy_maven }}
-        run: echo "deploy to maven" && mvn clean deploy -Papache-release -DskipTests -e || exit 
+        run: echo "deploy to maven" && mvn clean deploy -Papache-release -DskipTests -ntp -e || exit 
         
         
       - name: Release to svn
