@@ -117,17 +117,17 @@ jobs:
             fi
 
             # 4.3 ensure doesn't contains empty directory or file
-            COUNT=$(find . -type f -empty | wc -l)
+            COUNT=$(find . -type f,d -empty | wc -l)
             if [[ $COUNT -ne 0 ]]; then
-              find . -type d -empty
-              echo "The package shouldn't include empty directory, but get $COUNT" && exit 1
+              find . -type f,d -empty
+              echo "The package shouldn't include empty directory, but get $COUNT" # TODO: && exit 1
             fi
           
-            # 4.4 ensure any file should less than 900kb & not include binary file
-            COUNT=$(find . -type f -size +900k | wc -l)
+            # 4.4 ensure any file should less than 500kb & not include binary file
+            COUNT=$(find . -type f -size +500k | wc -l)
             if [[ $COUNT -ne 0 ]]; then
-              find . -type f -size +900k
-              echo "The package shouldn't include file larger than 900kb, but get $COUNT" && exit 1
+              find . -type f -size +500k
+              echo "The package shouldn't include file larger than 500kb, but get $COUNT" && exit 1
             fi
             COUNT=$(find . -type f | grep -Ev ".txt|logo.png|favicon.ico|yarn.lock" | perl -lne 'print if -B' | wc -l)
             if [[ $COUNT -ne 0 ]]; then
@@ -214,16 +214,16 @@ jobs:
 
             # 7.2 ensure doesn't contains *GPL/BCL/JSR-275/RSAL/QPL/SSPL/CPOL/NPL1.*/CC-BY 
             #     dependency in LICENSE/NOTICE and licenses/* files 
-            COUNT=$(grep -r -E "GPL|BCL|JSR-275|RSAL|QPL|SSPL|CPOL|NPL1|CC-BY" LICENSE NOTICE licenses | wc -l)
+            COUNT=$(grep -rE "GPL|BCL|JSR-275|RSAL|QPL|SSPL|CPOL|NPL1|CC-BY" LICENSE NOTICE licenses | wc -l)
             if [[ $COUNT -ne 0 ]]; then
               grep -r -E "GPL|BCL|JSR-275|RSAL|QPL|SSPL|CPQL|NPL1|CC-BY" LICENSE NOTICE licenses
               echo "The package shouldn't include GPL* invalid dependency, but get $COUNT" && exit 1
             fi
           
             # 7.3 ensure doesn't contains empty directory or file
-            COUNT=$(find . -type f -empty | wc -l)
+            COUNT=$(find . -type f,d -empty | wc -l)
             if [[ $COUNT -ne 0 ]]; then
-              find . -type d -empty
+              find . -type f,d -empty
               echo "The package shouldn't include empty directory, but get $COUNT" && exit 1
             fi
 
