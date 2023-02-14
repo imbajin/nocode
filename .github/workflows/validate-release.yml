@@ -117,7 +117,7 @@ jobs:
             fi
 
             # 4.3 ensure doesn't contains empty directory or file
-            COUNT=$(find . -type d -empty | wc -l)
+            COUNT=$(find . -type f -empty | wc -l)
             if [[ $COUNT -ne 0 ]]; then
               find . -type d -empty
               echo "The package shouldn't include empty directory, but get $COUNT" && exit 1
@@ -129,11 +129,11 @@ jobs:
               find . -type f -size +900k
               echo "The package shouldn't include file larger than 900kb, but get $COUNT" && exit 1
             fi
-            COUNT=$(find . -type f | perl -lne 'print if -B' | grep -v *.txt | wc -l)
+            COUNT=$(find . -type f | grep -Ev ".txt|logo.png|favicon.ico|yarn.lock" | perl -lne 'print if -B' | wc -l)
             if [[ $COUNT -ne 0 ]]; then
               find . -type f | perl -lne 'print if -B'
               # due to the search script is not perfect, we can't exit here (check manually)
-              echo "The package shouldn't include binary file, but get $COUNT"
+              echo "The package shouldn't include binary file, but get $COUNT" && exit 1
             fi
           
             # 4.5 test compile the packages
@@ -221,7 +221,7 @@ jobs:
             fi
           
             # 7.3 ensure doesn't contains empty directory or file
-            COUNT=$(find . -type d -empty | wc -l)
+            COUNT=$(find . -type f -empty | wc -l)
             if [[ $COUNT -ne 0 ]]; then
               find . -type d -empty
               echo "The package shouldn't include empty directory, but get $COUNT" && exit 1
