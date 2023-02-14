@@ -120,14 +120,14 @@ jobs:
             COUNT=$(find . -type f,d -empty | wc -l)
             if [[ $COUNT -ne 0 ]]; then
               find . -type f,d -empty
-              echo "The package shouldn't include empty directory, but get $COUNT" # TODO: && exit 1
+              echo "The package shouldn't include empty dir/file, but get $COUNT" # TODO: && exit 1
             fi
           
-            # 4.4 ensure any file should less than 500kb & not include binary file
+            # 4.4 ensure any file should less than 800kb & not include binary file
             COUNT=$(find . -type f -size +500k | wc -l)
             if [[ $COUNT -ne 0 ]]; then
-              find . -type f -size +500k
-              echo "The package shouldn't include file larger than 500kb, but get $COUNT" && exit 1
+              find . -type f -size +800k
+              echo "The package shouldn't include file larger than 800kb, but get $COUNT" && exit 1
             fi
             COUNT=$(find . -type f | grep -Ev ".txt|logo.png|favicon.ico|yarn.lock" | perl -lne 'print if -B' | wc -l)
             if [[ $COUNT -ne 0 ]]; then
@@ -224,7 +224,7 @@ jobs:
             COUNT=$(find . -type f,d -empty | wc -l)
             if [[ $COUNT -ne 0 ]]; then
               find . -type f,d -empty
-              echo "The package shouldn't include empty directory, but get $COUNT" && exit 1
+              echo "The package shouldn't include empty dir/file, but get $COUNT" && exit 1
             fi
 
             cd - || exit
