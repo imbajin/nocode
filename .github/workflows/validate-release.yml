@@ -97,6 +97,7 @@ jobs:
             fi
             tar xzvf "$i" || exit
             cd "$(basename "$i" .tar.gz)" || exit
+            echo "Start to check the package content: $(basename "$i" .tar.gz)"
 
             # 4.1 check the directory include "NOTICE" and "LICENSE" and "DISCLAIMER" file
             if [[ ! -f "LICENSE" ]]; then
@@ -124,7 +125,7 @@ jobs:
             fi
           
             # 4.4 ensure any file should less than 800kb & not include binary file
-            COUNT=$(find . -type f -size +500k | wc -l)
+            COUNT=$(find . -type f -size +800k | wc -l)
             if [[ $COUNT -ne 0 ]]; then
               find . -type f -size +800k
               echo "The package shouldn't include file larger than 800kb, but get $COUNT" && exit 1
@@ -133,7 +134,7 @@ jobs:
             if [[ $COUNT -ne 0 ]]; then
               find . -type f | perl -lne 'print if -B'
               # due to the search script is not perfect, we can't exit here (check manually)
-              echo "The package shouldn't include binary file, but get $COUNT" && exit 1
+              echo "The package shouldn't include binary file, but get $COUNT" # TODO: && exit 1
             fi
           
             # 4.5 test compile the packages
@@ -195,10 +196,11 @@ jobs:
               echo "The package name $i should include incubating" && exit 1
             fi
             tar xzvf "$i" || exit
-
-            # 7.1 check root dir include "NOTICE"/"LICENSE"/"DISCLAIMER" & "licenses" dir
             cd "$(basename "$i" .tar.gz)" || exit
             ls -lh
+            echo "Start to check the package content: $(basename "$i" .tar.gz)"
+
+            # 7.1 check root dir include "NOTICE"/"LICENSE"/"DISCLAIMER" & "licenses" dir
             if [[ ! -f "LICENSE" ]]; then
               echo "The package should include LICENSE file" && ls -lh && exit 1
             fi
