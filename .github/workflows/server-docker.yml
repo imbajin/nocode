@@ -1,4 +1,4 @@
-name: "publish server image"
+name: "Publish Server Image"
 
 on:
   #schedule:
@@ -40,7 +40,8 @@ jobs:
        # TODO: publish with optional release tag
       - name: Publish Docker images
         run: |
-          docker build -t hugegraph
+          pwd && ls -lh
+          docker build -t hugegraph .
           docker images
           #docker push ${{ inputs.image_url }}
 
