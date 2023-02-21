@@ -36,6 +36,12 @@ jobs:
           registry: ${{ inputs.docker_registry_url }}
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_PASSWORD }}
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          repository: ${{ inputs.repository_url }}
+          ref: ${{ env.repository_branch }}
+          fetch-depth: 2
 
        # TODO: publish with optional release tag
       - name: Publish Docker images
@@ -52,12 +58,7 @@ jobs:
 #          java-version: '11'
 #          distribution: 'zulu'
 #
-#      - name: Checkout
-#        uses: actions/checkout@v3
-#        with:
-#          repository: ${{ env.repository_url }}
-#          ref: ${{ env.repository_branch }}
-#          fetch-depth: 2
+
 #
 #      - name: Cache Maven packages
 #        uses: actions/cache@v3
