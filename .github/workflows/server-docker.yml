@@ -17,7 +17,7 @@ on:
         default: 'hugegraph/hugegraph'
       tag:
         required: true
-        default: 'latest'
+        default: 'test'
 
 jobs:
   build:
