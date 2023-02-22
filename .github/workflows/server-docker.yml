@@ -47,9 +47,14 @@ jobs:
       - name: Publish Docker images
         run: |
           pwd && ls -lh
-          docker build -t hugegraph .
+          docker build -t ${{ inputs.image_url }} .
           docker images
-          #docker push ${{ inputs.image_url }}
+          docker run -it ${{ inputs.image_url }}
+          sleep 15s
+          docker ps -a
+          sleep 15s
+          docker ps -a
+          docker push ${{ inputs.image_url }}
 
 #
 #      - name: Install JDK 11
