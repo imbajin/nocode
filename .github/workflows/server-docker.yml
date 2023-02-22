@@ -14,21 +14,23 @@ on:
         default: 'docker'
       image_url:
         required: true
-        default: 'hugegraph/hugegraph:latest'
-      docker_registry_url:
-        required: false
-        default: ''
+        default: 'hugegraph/hugegraph'
+      tag:
+        required: true
+        default: 'latest'
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      IMAGE_URI: ${{ inputs.image_url }}:${{ inputs.tag }}
     steps:
       - name: Reset env
         if: github.event_name == 'workflow_dispatch'
         run: |
          echo "repository_url=${{ inputs.repository_url }}" >> $GITHUB_ENV
          echo "repository_branch=${{ inputs.repository_branch }}" >> $GITHUB_ENV
-         echo "computer_image_url=${{ inputs.image_url }}" >> $GITHUB_ENV
+         echo "image_url=$IMAGE_URI" >> $GITHUB_ENV
          echo "docker_registry_url=${{ inputs.docker_registry_url }}" >> $GITHUB_ENV
           
       - name: Login to Docker Hub
@@ -44,37 +46,15 @@ jobs:
           ref: ${{ inputs.repository_branch }}
           fetch-depth: 2
 
-       # TODO: publish with optional release tag
       - name: Publish Docker images
         run: |
           pwd && ls -lh
-          docker build -t ${{ inputs.image_url }} .
+          docker build -t $IMAGE_URI .
           docker images
-          docker run -itd ${{ inputs.image_url }}
+          docker run -it $IMAGE_URI
           sleep 15s
           docker ps -a
           sleep 15s
           docker ps -a
-          docker push ${{ inputs.image_url }}
-
-#
-#      - name: Install JDK 11
-#        uses: actions/setup-java@v3
-#        with:
-#          java-version: '11'
-#          distribution: 'zulu'
-#
-
-#
-#      - name: Cache Maven packages
-#        uses: actions/cache@v3
-#        with:
-#          path: ~/.m2
-#          key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
-#          restore-keys: ${{ runner.os }}-m2
-#
-#      - name: Build images
-#        env:
-#          TRAVIS_DIR: computer-dist/src/assembly/travis
-#        run: $TRAVIS_DIR/build-images.sh ${{ env.computer_image_url }} ${{ env.operator_image_url }}
+          docker push $IMAGE_URI
           
