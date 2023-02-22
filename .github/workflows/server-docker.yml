@@ -1,8 +1,9 @@
 name: "Publish Server Image"
 
 on:
-  #schedule:
-  #  - cron:  '50 0-23 * * *'
+  push:
+    branches:
+      - master
   workflow_dispatch:
     inputs:
       repository_url:
