@@ -1,0 +1,58 @@
+name: "Release SVN Packages"
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_version:
+        required: true
+        default: '1.0.0'
+      update_keys:
+        required: true
+        type: boolean
+        description: cp KEYS to release & delete dev
+        default: false
+      delete_pkg:
+        required: false
+        type: boolean
+        description: delete old package in release
+        default: false
+      pre_version:
+        required: false
+        description: previous release version
+        default: 'x.x.x'
+
+jobs:
+    env:
+      DEV_PREFIX: https://dist.apache.org/repos/dist/dev/incubator/hugegraph
+      RELEASE_PREFIX: https://dist.apache.org/repos/dist/release/incubator/hugegraph
+    steps:
+      - name: Download SVN Sources (Dev)
+        run: |
+          svn co ${DEV_PREFIX}/${{ inputs.release_version }} ${{ inputs.release_version }} || exit
+          (cd ${{ inputs.release_version }} && ls -lh) || exit
+      
+      # check https://downloads.apache.org/hugegraph after 1h at least
+      - name: Move Packages Only
+        if: ${{ !inputs.update_keys }}
+        run: |
+          svn mv ${DEV_PREFIX}/${{ inputs.release_version }} ${RELEASE_PREFIX}/${{ inputs.release_version }} \
+              --username ${{ secrets.RELEASE_USERNAME }} --password ${{ secrets.RELEASE_PASSWORD }} \
+              -m "move packages for ${{ inputs.release_version }}" || exit
+          svn log
+
+      - name: Move Package & KEYS & Delete KEYS in dev
+        if: ${{ inputs.update_keys }}
+        run: |
+          svn mv ${DEV_PREFIX}/${{ inputs.release_version }} ${RELEASE_PREFIX}/${{ inputs.release_version }} \
+              --username ${{ secrets.RELEASE_USERNAME }} --password ${{ secrets.RELEASE_PASSWORD }} \
+              -m "move packages for ${{ inputs.release_version }}" || exit
+          svn delete ${RELEASE_PREFIX}/KEYS -m "delete old KEYS"
+          svm mv https://dist.apache.org/repos/dist/dev/incubator/hugegraph/KEYS \
+              https://dist.apache.org/repos/dist/release/incubator/hugegraph/KEYS \
+              -m "move new KEYS for ${{ inputs.release_version }}"
+          svn log
+
+      - name: Delete Old Package
+        if: ${{ inputs.delete_pkg }}
+        run: |
+          svn delete ${RELEASE_PREFIX}/${{ inputs.pre_version }} -m "Delete old version ${last_release_version}"
