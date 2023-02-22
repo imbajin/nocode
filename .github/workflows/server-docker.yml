@@ -1,9 +1,9 @@
 name: "Publish Server Image"
 
 on:
-  push:
-    branches:
-      - master
+#  push:
+#    branches:
+#      - master
   workflow_dispatch:
     inputs:
       repository_url:
