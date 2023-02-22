@@ -49,7 +49,7 @@ jobs:
           pwd && ls -lh
           docker build -t ${{ inputs.image_url }} .
           docker images
-          docker run -it ${{ inputs.image_url }}
+          docker run -itd ${{ inputs.image_url }}
           sleep 15s
           docker ps -a
           sleep 15s
