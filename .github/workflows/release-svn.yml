@@ -22,6 +22,8 @@ on:
         default: 'x.x.x'
 
 jobs:
+  build:
+    runs-on: ubuntu-latest
     env:
       DEV_PREFIX: https://dist.apache.org/repos/dist/dev/incubator/hugegraph
       RELEASE_PREFIX: https://dist.apache.org/repos/dist/release/incubator/hugegraph
