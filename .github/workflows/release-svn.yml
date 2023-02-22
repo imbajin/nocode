@@ -28,11 +28,6 @@ jobs:
       DEV_PREFIX: https://dist.apache.org/repos/dist/dev/incubator/hugegraph
       RELEASE_PREFIX: https://dist.apache.org/repos/dist/release/incubator/hugegraph
     steps:
-      #- name: Download SVN Sources (Dev)
-      #  run: |
-      #    svn co ${DEV_PREFIX}/${{ inputs.release_version }} ${{ inputs.release_version }} || exit
-      #    (cd ${{ inputs.release_version }} && ls -lh) || exit
-      
       # check https://downloads.apache.org/hugegraph after 1h at least
       - name: Move Packages Only
         if: ${{ !inputs.update_keys }}
@@ -40,7 +35,6 @@ jobs:
           svn mv ${DEV_PREFIX}/${{ inputs.release_version }} ${RELEASE_PREFIX}/${{ inputs.release_version }} \
               --username ${{ secrets.RELEASE_USERNAME }} --password ${{ secrets.RELEASE_PASSWORD }} \
               -m "move packages for ${{ inputs.release_version }}" || exit
-          svn log
 
       - name: Move Package & KEYS & Delete KEYS in dev
         if: ${{ inputs.update_keys }}
@@ -52,6 +46,11 @@ jobs:
           svm mv https://dist.apache.org/repos/dist/dev/incubator/hugegraph/KEYS \
               https://dist.apache.org/repos/dist/release/incubator/hugegraph/KEYS \
               -m "move new KEYS for ${{ inputs.release_version }}"
+          
+      - name: Download SVN Sources (Release)
+        run: |
+          svn co ${RELEASE_PREFIX} release || exit
+          (cd release && ls -lh) || exit
           svn log
 
       - name: Delete Old Package
