@@ -51,7 +51,7 @@ jobs:
           pwd && ls -lh
           docker build -t $IMAGE_URI .
           docker images
-          docker run -it $IMAGE_URI
+          docker run -itd $IMAGE_URI
           sleep 15s
           docker ps -a
           sleep 15s
