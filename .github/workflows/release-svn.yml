@@ -28,10 +28,10 @@ jobs:
       DEV_PREFIX: https://dist.apache.org/repos/dist/dev/incubator/hugegraph
       RELEASE_PREFIX: https://dist.apache.org/repos/dist/release/incubator/hugegraph
     steps:
-      - name: Download SVN Sources (Dev)
-        run: |
-          svn co ${DEV_PREFIX}/${{ inputs.release_version }} ${{ inputs.release_version }} || exit
-          (cd ${{ inputs.release_version }} && ls -lh) || exit
+      #- name: Download SVN Sources (Dev)
+      #  run: |
+      #    svn co ${DEV_PREFIX}/${{ inputs.release_version }} ${{ inputs.release_version }} || exit
+      #    (cd ${{ inputs.release_version }} && ls -lh) || exit
       
       # check https://downloads.apache.org/hugegraph after 1h at least
       - name: Move Packages Only
