@@ -25,14 +25,6 @@ jobs:
     env:
       IMAGE_URI: ${{ inputs.image_url }}:${{ inputs.tag }}
     steps:
-      - name: Reset env
-        if: github.event_name == 'workflow_dispatch'
-        run: |
-         echo "repository_url=${{ inputs.repository_url }}" >> $GITHUB_ENV
-         echo "repository_branch=${{ inputs.repository_branch }}" >> $GITHUB_ENV
-         echo "image_url=$IMAGE_URI" >> $GITHUB_ENV
-         echo "docker_registry_url=${{ inputs.docker_registry_url }}" >> $GITHUB_ENV
-
       # Used for build X64 & ARM images together
       # Refer: https://github.com/marketplace/actions/docker-setup-buildx
       - name: Set up Docker Buildx
@@ -55,7 +47,7 @@ jobs:
         with:
           context: .
           load: true
-          tags: $IMAGE_URI
+          tags: ${{ IMAGE_URI }}
       - name: Test Image
         run: |
           docker version
@@ -73,7 +65,7 @@ jobs:
           file: ./Dockerfile
           platforms: linux/amd64,linux/arm64
           push: true
-          tags: $IMAGE_URI
+          tags: ${{ IMAGE_URI }}
 
      # - name: Publish Docker images
      #   run: |
