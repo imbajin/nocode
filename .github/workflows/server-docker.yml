@@ -1,4 +1,4 @@
-name: "Publish Server Image"
+name: "Docker Server Image"
 
 on:
 #  push:
@@ -42,7 +42,7 @@ jobs:
           ref: ${{ inputs.repository_branch }}
           fetch-depth: 2
           
-      - name: Build Image
+      - name: Build X86 Image
         uses: docker/build-push-action@v4
         with:
           context: .
@@ -50,7 +50,7 @@ jobs:
           tags: ${{ env.IMAGE_URI }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-      - name: Test Image
+      - name: Test X86 Image
         run: |
           docker version
           docker images
@@ -59,8 +59,8 @@ jobs:
           docker ps -a
           sleep 15s
           docker ps -a
-          
-      - name: Build and push
+
+      - name: Build ARM & Push all
         uses: docker/build-push-action@v4
         with:
           context: .
