@@ -23,6 +23,8 @@ jobs:
   build:
     runs-on: ubuntu-latest
     env:
+      # TODO: support auto tag/label the images by action
+      # Refer: https://docs.docker.com/build/ci/github-actions/manage-tags-labels/
       IMAGE_URI: ${{ inputs.image_url }}:${{ inputs.tag }}
     steps:
       # Used for build X64 & ARM images together
