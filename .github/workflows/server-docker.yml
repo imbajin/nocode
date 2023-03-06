@@ -32,7 +32,11 @@ jobs:
          echo "repository_branch=${{ inputs.repository_branch }}" >> $GITHUB_ENV
          echo "image_url=$IMAGE_URI" >> $GITHUB_ENV
          echo "docker_registry_url=${{ inputs.docker_registry_url }}" >> $GITHUB_ENV
-          
+
+      # Used for build X64 & ARM images together
+      # Refer: https://github.com/marketplace/actions/docker-setup-buildx
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
       - name: Login to Docker Hub
         uses: docker/login-action@v2
         with:
@@ -45,16 +49,43 @@ jobs:
           repository: ${{ inputs.repository_url }}
           ref: ${{ inputs.repository_branch }}
           fetch-depth: 2
-
-      - name: Publish Docker images
+          
+      - name: Build Image
+        uses: docker/build-push-action@v4
+        with:
+          context: .
+          load: true
+          tags: $IMAGE_URI
+      - name: Test Image
         run: |
-          pwd && ls -lh
-          docker build -t $IMAGE_URI .
+          docker version
           docker images
           docker run -itd $IMAGE_URI
           sleep 15s
           docker ps -a
           sleep 15s
           docker ps -a
-          docker push $IMAGE_URI
+          
+      - name: Build and push
+        uses: docker/build-push-action@v4
+        with:
+          context: .
+          file: ./Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: $IMAGE_URI
+
+     # - name: Publish Docker images
+     #   run: |
+     #     pwd && ls -lh
+     #     export DOCKER_CLI_EXPERIMENTAL=enabled
+     #     docker version
+     #     docker build -t $IMAGE_URI .
+     #     docker images
+     #     docker run -itd $IMAGE_URI
+     #     sleep 15s
+     #     docker ps -a
+     #     sleep 15s
+     #     docker ps -a
+     #     docker push $IMAGE_URI
           
