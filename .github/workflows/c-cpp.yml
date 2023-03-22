@@ -72,7 +72,7 @@ jobs:
           mvn -B package --file pom.xml # -ntp
 
       - name: Publish to GitHub Packages Apache Maven
-        if: ${{ inputs.deploy_maven }
+        if: ${{ inputs.deploy_maven }}
         run: mvn deploy -s $GITHUB_WORKSPACE/settings.xml
         env:
           GITHUB_TOKEN: ${{ github.token }}
