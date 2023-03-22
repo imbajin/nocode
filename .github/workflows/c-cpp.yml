@@ -34,7 +34,8 @@ jobs:
         run: |
          make --version
          git submodule update --init --recursive
-         ssh-keyscan -t rsa github.com > ~/.ssh/known_hosts # silent git
+         mkdir -p ~/.ssh
+         ssh-keyscan -t rsa github.com >> ~/.ssh/known_hosts
          # this step could take a long time?
          make -j`nproc` DEBUG_LEVEL=0 shared_lib
          sudo make install-shared PREFIX=/opt
