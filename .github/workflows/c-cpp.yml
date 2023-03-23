@@ -88,7 +88,9 @@ jobs:
                -p keyCount=1000 -p keySize=128 -p valueSize=32768 \
                -p sideConf=../../sideplugin/rockside/sample-conf/db_bench_enterprise.yaml SideGetBenchmarks
           curl http://127.0.0.1:2011
-
+          
+      - if: ${{ inputs.deploy_maven }} 
+        uses: s4u/maven-settings-action@v2.8.0
       - name: Publish JAR to GitHub Packages
         if: ${{ inputs.deploy_maven }}
         run: |
