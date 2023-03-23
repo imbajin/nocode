@@ -76,7 +76,7 @@ jobs:
           echo ${{ github.workspace }} && echo $GITHUB_WORKSPACE
           pwd && ls -l
           (cd java/jmh && ls -l && pwd) || exit
-          mvn clean package -e -ntp -f ./pom.xml # -B in non-interactive (Batch) mode
+          mvn clean package -e -ntp -f /home/runner/work/nocode/nocode/java/jmh/pom.xml # -B in non-interactive (Batch) mode
           
       - name: Run SideGetBenchmarks & Check it
         run: |
