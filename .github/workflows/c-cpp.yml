@@ -34,7 +34,7 @@ jobs:
         run: |
          sudo apt-get update -y
          sudo apt-get install -y libjemalloc-dev libaio-dev libgflags-dev zlib1g-dev \
-                             libbz2-dev libcurl4-gnutls-dev liburing-dev
+                                 libbz2-dev libcurl4-gnutls-dev liburing-dev
          make --version && gcc --version
          git submodule update --init --recursive
          mkdir -p ~/.ssh
@@ -66,22 +66,22 @@ jobs:
       - name: Move to Local Maven Repo
         run: |
           cd java/target || exit
-          cp rocksdbjni-7.10.0-linux64.jar rocksdbjni-7.10.0-SNAPSHOT-linux64.jar
+          cp -v rocksdbjni-7.10.0-linux64.jar rocksdbjni-7.10.0-SNAPSHOT-linux64.jar
           mvn install:install-file -ntp -Dfile=rocksdbjni-7.10.0-SNAPSHOT-linux64.jar \
           -DgroupId=org.rocksdb -DartifactId=rocksdbjni -Dversion=7.10.0-SNAPSHOT -Dpackaging=jar
 
       # for compile SideGetBenchmarks
       - name: Build with Maven
         run: |
-          echo -n ${{ github.workspace }} && echo -n $GITHUB_WORKSPACE
+          echo ${{ github.workspace }} && echo $GITHUB_WORKSPACE
           pwd && ls -l
-          (cd java/jmh && ls -l) || exit
-          mvn clean package -ntp # -B in non-interactive (Batch) mode
+          (cd java/jmh && ls -l && pwd) || exit
+          mvn clean package -e -ntp -f ./pom.xml # -B in non-interactive (Batch) mode
           
       - name: Run SideGetBenchmarks & Check it
         run: |
           mkdir -p /dev/shm/db_bench_enterprise
-          cp ../../sideplugin/rockside/src/topling/web/{style.css,index.html} /dev/shm/db_bench_enterprise
+          cp -v ../../sideplugin/rockside/src/topling/web/{style.css,index.html} /dev/shm/db_bench_enterprise
           export LD_LIBRARY_PATH=/opt/lib:$LD_LIBRARY_PATH # for libterark-*
           export LD_PRELOAD=libterark-zbs-g++-12.1-r.so:libterark-fsa-g++-12.1-r.so:libjemalloc.so
           java -jar target/rocksdbjni-jmh-1.0-SNAPSHOT-benchmarks.jar \
@@ -95,6 +95,6 @@ jobs:
         if: ${{ inputs.deploy_maven }}
         run: |
           ls -l $GITHUB_WORKSPACE && cat $GITHUB_WORKSPACE/settings.xml
-          mvn deploy -s $GITHUB_WORKSPACE/settings.xml
+          mvn deploy -e -s $GITHUB_WORKSPACE/settings.xml
         env:
           GITHUB_TOKEN: ${{ github.token }}
