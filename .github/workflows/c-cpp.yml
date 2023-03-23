@@ -67,20 +67,15 @@ jobs:
         run: |
           cd java/target || exit
           cp rocksdbjni-7.10.0-linux64.jar rocksdbjni-7.10.0-SNAPSHOT-linux64.jar
-          mvn install:install-file -Dfile=rocksdbjni-7.10.0-SNAPSHOT-linux64.jar \
+          mvn install:install-file -ntp -Dfile=rocksdbjni-7.10.0-SNAPSHOT-linux64.jar \
           -DgroupId=org.rocksdb -DartifactId=rocksdbjni -Dversion=7.10.0-SNAPSHOT -Dpackaging=jar
 
       # for compile SideGetBenchmarks
       - name: Build with Maven
         run: |
-          pwd && ls -l && (cd java/jmh || exit)
-          mvn -B package --file pom.xml # -ntp
-
-      - name: Publish to GitHub Packages Apache Maven
-        if: ${{ inputs.deploy_maven }}
-        run: mvn deploy -s $GITHUB_WORKSPACE/settings.xml
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
+          pwd && ls -l
+          (cd java/jmh && ls -l) || exit
+          mvn package -ntp # -B in non-interactive (Batch) mode
           
       - name: Run SideGetBenchmarks
         run: |
@@ -91,3 +86,12 @@ jobs:
           java -jar target/rocksdbjni-jmh-1.0-SNAPSHOT-benchmarks.jar \
                -p keyCount=1000 -p keySize=128 -p valueSize=32768 \
                -p sideConf=../../sideplugin/rockside/sample-conf/db_bench_enterprise.yaml SideGetBenchmarks
+
+      - name: Publish JAR to GitHub Packages
+        if: ${{ inputs.deploy_maven }}
+        run: |
+          echo -n ${{ github.workspace }} && echo -n $GITHUB_WORKSPACE
+          ls -l $GITHUB_WORKSPACE
+          mvn deploy -s $GITHUB_WORKSPACE/settings.xml
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
