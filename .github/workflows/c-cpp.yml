@@ -75,7 +75,7 @@ jobs:
         run: |
           pwd && ls -l
           (cd java/jmh && ls -l) || exit
-          mvn package -ntp # -B in non-interactive (Batch) mode
+          mvn clean package -ntp # -B in non-interactive (Batch) mode
           
       - name: Run SideGetBenchmarks
         run: |
