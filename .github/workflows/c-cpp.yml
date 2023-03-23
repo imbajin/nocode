@@ -77,7 +77,7 @@ jobs:
           (cd java/jmh && ls -l) || exit
           mvn clean package -ntp # -B in non-interactive (Batch) mode
           
-      - name: Run SideGetBenchmarks
+      - name: Run SideGetBenchmarks & Check it
         run: |
           mkdir -p /dev/shm/db_bench_enterprise
           cp ../../sideplugin/rockside/src/topling/web/{style.css,index.html} /dev/shm/db_bench_enterprise
@@ -86,6 +86,7 @@ jobs:
           java -jar target/rocksdbjni-jmh-1.0-SNAPSHOT-benchmarks.jar \
                -p keyCount=1000 -p keySize=128 -p valueSize=32768 \
                -p sideConf=../../sideplugin/rockside/sample-conf/db_bench_enterprise.yaml SideGetBenchmarks
+          curl http://127.0.0.1:2011
 
       - name: Publish JAR to GitHub Packages
         if: ${{ inputs.deploy_maven }}
