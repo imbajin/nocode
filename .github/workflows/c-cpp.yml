@@ -80,13 +80,14 @@ jobs:
           
       - name: Run SideGetBenchmarks & Check it
         run: |
-          mkdir -p /dev/shm/db_bench_enterprise
-          cp -v ../../sideplugin/rockside/src/topling/web/{style.css,index.html} /dev/shm/db_bench_enterprise
+          mkdir -p /dev/shm/db_bench_community
+          ls ../../sideplugin/rockside/src/topling/*/*
+          #cp -v ../../sideplugin/rockside/src/topling/web/{style.css,index.html} /dev/shm/db_bench_community
           export LD_LIBRARY_PATH=/opt/lib:$LD_LIBRARY_PATH # for libterark-*
           export LD_PRELOAD=libterark-zbs-g++-12.1-r.so:libterark-fsa-g++-12.1-r.so:libjemalloc.so
           java -jar target/rocksdbjni-jmh-1.0-SNAPSHOT-benchmarks.jar \
                -p keyCount=1000 -p keySize=128 -p valueSize=32768 \
-               -p sideConf=../../sideplugin/rockside/sample-conf/db_bench_enterprise.yaml SideGetBenchmarks
+               -p sideConf=../../sideplugin/rockside/sample-conf/db_bench_community.yaml SideGetBenchmarks
           curl http://127.0.0.1:2011
           
       - if: ${{ inputs.deploy_maven }} 
