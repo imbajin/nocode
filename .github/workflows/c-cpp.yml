@@ -81,7 +81,8 @@ jobs:
       - name: Run SideGetBenchmarks & Check it
         run: |
           mkdir -p /dev/shm/db_bench_community
-          ls ../../sideplugin/rockside/src/topling/web && ls $GITHUB_WORKSPACE/sideplugin/rockside/src/topling/web
+          cd $GITHUB_WORKSPACE/java/jmh || exit
+          ls ../../sideplugin/rockside/src/topling/web
           cp -v $GITHUB_WORKSPACE/sideplugin/rockside/src/topling/web/{style.css,index.html} /dev/shm/db_bench_community
           export LD_LIBRARY_PATH=/opt/lib:$LD_LIBRARY_PATH # for libterark-*
           export LD_PRELOAD=libterark-zbs-g++-12.1-r.so:libterark-fsa-g++-12.1-r.so:libjemalloc.so
@@ -95,6 +96,7 @@ jobs:
       - name: Publish JAR to GitHub Packages
         if: ${{ inputs.deploy_maven }}
         run: |
+          cd $GITHUB_WORKSPACE/java/jmh || exit
           ls -l $GITHUB_WORKSPACE && cat $GITHUB_WORKSPACE/settings.xml 
           mvn deploy -e -s $GITHUB_WORKSPACE/settings.xml -f $GITHUB_WORKSPACE/java/jmh/pom.xml
         env:
