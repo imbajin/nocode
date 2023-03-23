@@ -32,8 +32,8 @@ jobs:
           
       - name: Init Env & Compile RocksDB
         run: |
-         apt install -y libjemalloc-dev libaio-dev libgflags-dev zlib1g-dev \
-             libbz2-dev libcurl4-gnutls-dev liburing-dev
+         sudo apt install -y libjemalloc-dev libaio-dev libgflags-dev zlib1g-dev \
+                             libbz2-dev libcurl4-gnutls-dev liburing-dev
          make --version && gcc --version
          git submodule update --init --recursive
          mkdir -p ~/.ssh
