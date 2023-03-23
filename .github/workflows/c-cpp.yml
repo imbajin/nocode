@@ -32,16 +32,15 @@ jobs:
           
       - name: Init Env & Compile RocksDB
         run: |
-         make --version
+         apt install -y libjemalloc-dev libaio-dev libgflags-dev zlib1g-dev \
+             libbz2-dev libcurl4-gnutls-dev liburing-dev
+         make --version && gcc --version
          git submodule update --init --recursive
          mkdir -p ~/.ssh
          ssh-keyscan -t rsa github.com >> ~/.ssh/known_hosts
          # this step could take a long time?
          make -j`nproc` DEBUG_LEVEL=0 shared_lib
          sudo make install-shared PREFIX=/opt
-
-      - name: Compile RocksDBJava
-        run: make rocksdbjava -j`nproc` DEBUG_LEVEL=0
 
       - name: Set up JDK 11
         uses: actions/setup-java@v3
@@ -51,13 +50,17 @@ jobs:
           cache: maven
           server-id: github # Value of the distributionManagement/repository/id field of the pom.xml
           settings-path: ${{ github.workspace }} # location for the settings.xml file
-
       #- name: Cache Make
       #  uses: actions/cache@v3
       #  with:
       #    path: ~/.m2/repository
       #    key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
       #    restore-keys: ${{ runner.os }}-m2
+
+      - name: Compile RocksDBJava
+        run: |
+          echo $JAVA_HOME && ls -l $(which jps)
+          make rocksdbjava -j`nproc` DEBUG_LEVEL=0
 
       - name: Move to Maven Local Repo
         run: |
