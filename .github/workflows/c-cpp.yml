@@ -44,7 +44,7 @@ jobs:
           distribution: 'temurin'
           cache: maven
           server-id: github # Value of the distributionManagement/repository/id field of the pom.xml
-      #    settings-path: ${{ github.workspace }} # location for the settings.xml file
+          settings-path: ${{ github.workspace }} # location for the settings.xml file
       #- name: Cache Make
       #  uses: actions/cache@v3
       #  with:
@@ -109,7 +109,7 @@ jobs:
         if: ${{ inputs.deploy_maven }}
         run: |
           cd $GITHUB_WORKSPACE/java/jmh || exit
-          ls -l $GITHUB_WORKSPACE && cat $GITHUB_WORKSPACE/settings.xml 
-          mvn deploy -e -s $GITHUB_WORKSPACE/settings.xml -f $GITHUB_WORKSPACE/java/jmh/pom.xml
+          ls -l $GITHUB_WORKSPACE
+          mvn deploy -e -f $GITHUB_WORKSPACE/java/jmh/pom.xml
         env:
           GITHUB_TOKEN: ${{ github.token }}
