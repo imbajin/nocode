@@ -47,7 +47,7 @@ jobs:
           
       - name: Init Env & Compile RocksDB
         run: |
-         sudo apt-get update -y && apt-get install -y \
+         sudo apt-get update -y && sudo apt-get install -y \
          libjemalloc-dev libaio-dev libgflags-dev zlib1g-dev \
          libbz2-dev libcurl4-gnutls-dev liburing-dev
          gcc --version
