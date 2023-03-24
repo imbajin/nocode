@@ -9,8 +9,13 @@ on:
       repository_branch:
         required: false
         default: 'sideplugin-7.10.0-2022-12-21-bec42648'
+      test:
+        required: false
+        type: boolean
+        description: test SideGetBenchmarks
+        default: false
       deploy_maven:
-        required: true
+        required: false
         type: boolean
         description: publish to maven nexus
         default: false
@@ -18,6 +23,8 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      GCC_VER: "11.3" # better get from the 'gcc --version'
     permissions:
       contents: read
       packages: write
@@ -63,7 +70,6 @@ jobs:
         run: |
           echo $JAVA_HOME && ls -l $(which jps)
           make rocksdbjava -j`nproc` DEBUG_LEVEL=0
-          ls -l /opt/lib
 
       - name: Move to Local Maven Repo
         run: |
@@ -81,6 +87,7 @@ jobs:
           mvn clean package -e -ntp -f $GITHUB_WORKSPACE/java/jmh/pom.xml # -B in non-interactive (Batch) mode
           
       - name: Run SideGetBenchmarks & Check it
+        if: ${{ inputs.test }}
         run: |
           mkdir -p /dev/shm/db_bench_community
           cd $GITHUB_WORKSPACE/java/jmh || exit
@@ -94,7 +101,7 @@ jobs:
           java -jar target/rocksdbjni-jmh-1.0-SNAPSHOT-benchmarks.jar \
                -p keyCount=1000 -p keySize=128 -p valueSize=32768 \
                -p sideConf=$GITHUB_WORKSPACE/sideplugin/rockside/sample-conf/db_bench_community.yaml SideGetBenchmarks
-          curl http://127.0.0.1:2011
+          # curl http://127.0.0.1:2011 # web server should visit in running time
           
       - if: ${{ inputs.deploy_maven }} 
         uses: s4u/maven-settings-action@v2.8.0
