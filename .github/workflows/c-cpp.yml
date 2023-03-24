@@ -52,7 +52,7 @@ jobs:
                                  libbz2-dev libcurl4-gnutls-dev liburing-dev
          make --version && gcc --version
          git submodule update --init --recursive
-         mkdir -p ~/.ssh
+         mkdir -p ~/.ssh && mkdir -p /opt/lib
          ssh-keyscan -t rsa github.com >> ~/.ssh/known_hosts
          # this step could take a long time?
          make -j`nproc` DEBUG_LEVEL=0 shared_lib
