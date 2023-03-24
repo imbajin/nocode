@@ -104,8 +104,8 @@ jobs:
                -p sideConf=$GITHUB_WORKSPACE/sideplugin/rockside/sample-conf/db_bench_community.yaml SideGetBenchmarks
           # curl http://127.0.0.1:2011 # web server should visit in running time
           
-      - if: ${{ inputs.deploy_maven }} 
-        uses: s4u/maven-settings-action@v2.8.0
+      #- if: ${{ inputs.deploy_maven }} 
+      #  uses: s4u/maven-settings-action@v2.8.0 # seems "actions/setup-java" could include this
       - name: Publish JAR to GitHub Packages
         if: ${{ inputs.deploy_maven }}
         run: |
