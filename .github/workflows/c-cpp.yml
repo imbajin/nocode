@@ -47,23 +47,23 @@ jobs:
           
       - name: Init Env & Compile RocksDB
         run: |
-         sudo apt-get update -y
-         sudo apt-get install -y libjemalloc-dev libaio-dev libgflags-dev zlib1g-dev \
-                                 libbz2-dev libcurl4-gnutls-dev liburing-dev
-         make --version && gcc --version
+         sudo apt-get update -y && apt-get install -y \
+         libjemalloc-dev libaio-dev libgflags-dev zlib1g-dev \
+         libbz2-dev libcurl4-gnutls-dev liburing-dev
+         gcc --version
          git submodule update --init --recursive
          mkdir -p ~/.ssh && mkdir -p /opt/lib
          ssh-keyscan -t rsa github.com >> ~/.ssh/known_hosts
          # this step could take a long time?
          make -j`nproc` DEBUG_LEVEL=0 shared_lib
          sudo make install-shared PREFIX=/opt
-         ls /opt/*/*
+         ls -l /opt/lib
 
       - name: Compile RocksDBJava
         run: |
           echo $JAVA_HOME && ls -l $(which jps)
           make rocksdbjava -j`nproc` DEBUG_LEVEL=0
-          ls /opt/*/*
+          ls -l /opt/lib
 
       - name: Move to Local Maven Repo
         run: |
@@ -71,7 +71,6 @@ jobs:
           cp -v rocksdbjni-7.10.0-linux64.jar rocksdbjni-7.10.0-SNAPSHOT-linux64.jar
           mvn install:install-file -ntp -Dfile=rocksdbjni-7.10.0-SNAPSHOT-linux64.jar \
           -DgroupId=org.rocksdb -DartifactId=rocksdbjni -Dversion=7.10.0-SNAPSHOT -Dpackaging=jar
-          ls /opt/*/*
 
       # for compile SideGetBenchmarks
       - name: Build SideGetBenchmarks with Maven
@@ -80,7 +79,6 @@ jobs:
           pwd && ls -l
           (cd java/jmh && ls -l && pwd) || exit
           mvn clean package -e -ntp -f $GITHUB_WORKSPACE/java/jmh/pom.xml # -B in non-interactive (Batch) mode
-          ls /opt/*/*
           
       - name: Run SideGetBenchmarks & Check it
         run: |
@@ -90,8 +88,9 @@ jobs:
           cp -v $GITHUB_WORKSPACE/sideplugin/rockside/src/topling/web/{style.css,index.html} /dev/shm/db_bench_community
           echo $LD_LIBRARY_PATH
           export LD_LIBRARY_PATH=/opt/lib:$LD_LIBRARY_PATH # for libterark-*
-          echo $LD_LIBRARY_PATH && ls -l /opt/*/*
-          export LD_PRELOAD=libterark-zbs-g++-12.1-r.so:libterark-fsa-g++-12.1-r.so:libjemalloc.so
+          echo $LD_LIBRARY_PATH && ls -l /opt/lib
+          #export LD_PRELOAD=libterark-zbs-g++-12.1-r.so:libterark-fsa-g++-12.1-r.so:libjemalloc.so # not exist
+          export LD_PRELOAD=libterark-zbs-g++-11.3-r.so:libterark-fsa-g++-11.3-r.so:libjemalloc.so
           java -jar target/rocksdbjni-jmh-1.0-SNAPSHOT-benchmarks.jar \
                -p keyCount=1000 -p keySize=128 -p valueSize=32768 \
                -p sideConf=$GITHUB_WORKSPACE/sideplugin/rockside/sample-conf/db_bench_community.yaml SideGetBenchmarks
