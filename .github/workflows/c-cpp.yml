@@ -84,7 +84,9 @@ jobs:
           cd $GITHUB_WORKSPACE/java/jmh || exit
           ls ../../sideplugin/rockside/src/topling/web
           cp -v $GITHUB_WORKSPACE/sideplugin/rockside/src/topling/web/{style.css,index.html} /dev/shm/db_bench_community
+          echo $LD_LIBRARY_PATH
           export LD_LIBRARY_PATH=/opt/lib:$LD_LIBRARY_PATH # for libterark-*
+          echo $LD_LIBRARY_PATH && ls -l $LD_LIBRARY_PATH
           export LD_PRELOAD=libterark-zbs-g++-12.1-r.so:libterark-fsa-g++-12.1-r.so:libjemalloc.so
           java -jar target/rocksdbjni-jmh-1.0-SNAPSHOT-benchmarks.jar \
                -p keyCount=1000 -p keySize=128 -p valueSize=32768 \
