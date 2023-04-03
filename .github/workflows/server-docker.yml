@@ -11,7 +11,7 @@ on:
         default: 'apache/hugegraph'
       repository_branch:
         required: true
-        default: 'docker'
+        default: 'master'
       image_url:
         required: true
         default: 'hugegraph/hugegraph'
