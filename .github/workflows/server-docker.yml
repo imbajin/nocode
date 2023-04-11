@@ -1,9 +1,8 @@
 name: "Docker Server Image"
 
 on:
-#  push:
-#    branches:
-#      - master
+  schedule:
+    - cron: '0 23 * * 1'
   workflow_dispatch:
     inputs:
       repository_url:
@@ -17,7 +16,7 @@ on:
         default: 'hugegraph/hugegraph'
       tag:
         required: true
-        default: 'test'
+        default: 'latest'
 
 jobs:
   build:
