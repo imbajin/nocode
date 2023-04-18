@@ -24,8 +24,19 @@ jobs:
     env:
       # TODO: support auto tag/label the images by action
       # Refer: https://docs.docker.com/build/ci/github-actions/manage-tags-labels/
-      IMAGE_URI: ${{ inputs.image_url }}:${{ inputs.tag }}
+      repository_url: apache/hugegraph
+      repository_branch: master
+      image_url: hugegraph/hugegraph:latest
+
     steps:
+      - name: Reset If Need
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+         echo "repository_url=${{ inputs.repository_url }}" >> $GITHUB_ENV
+         echo "repository_branch=${{ inputs.repository_branch }}" >> $GITHUB_ENV
+         echo "image_url=${{ inputs.image_url }}" >> $GITHUB_ENV
+         echo "tag=${{ inputs.tag }}" >> $GITHUB_ENV
+
       # Used for build X64 & ARM images together
       # Refer: https://github.com/marketplace/actions/docker-setup-buildx
       - name: Set up Docker Buildx
@@ -33,14 +44,14 @@ jobs:
       - name: Login to Docker Hub
         uses: docker/login-action@v2
         with:
-          registry: ${{ inputs.docker_registry_url }}
+          registry: ${{ inputs.image_url }}
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_PASSWORD }}
       - name: Checkout
         uses: actions/checkout@v3
         with:
-          repository: ${{ inputs.repository_url }}
-          ref: ${{ inputs.repository_branch }}
+          repository: ${{ env.repository_url }}
+          ref: ${{ env.repository_branch }}
           fetch-depth: 2
           
       - name: Build X86 Image
@@ -48,14 +59,14 @@ jobs:
         with:
           context: .
           load: true
-          tags: ${{ env.IMAGE_URI }}
+          tags: ${{ env.image_url }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
       - name: Test X86 Image
         run: |
           docker version
           docker images
-          docker run -itd $IMAGE_URI
+          docker run -itd $image_url
           sleep 15s
           docker ps -a
           sleep 15s
@@ -68,7 +79,7 @@ jobs:
           file: ./Dockerfile
           platforms: linux/amd64,linux/arm64
           push: true
-          tags: ${{ env.IMAGE_URI }}
+          tags: ${{ env.image_url }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
