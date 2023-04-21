@@ -64,12 +64,13 @@ jobs:
           cache-to: type=gha,mode=max
       - name: Test X86 Image
         run: |
-          docker version
           docker images
-          docker run -itd $image_url
-          sleep 15s
+          docker run -itd --name=graph -p 18080:8080 $image_url
+          sleep 20s
+          curl 0.0.0.0:18080 || exit
           docker ps -a
-          sleep 15s
+          sleep 20s
+          curl 0.0.0.0:18080 || exit
           docker ps -a
 
       - name: Build ARM & Push all
