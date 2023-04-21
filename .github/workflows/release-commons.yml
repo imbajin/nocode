@@ -15,7 +15,12 @@ on:
       deploy_maven:
         required: true
         type: boolean
-        description: publish to maven nexus
+        description: publish to maven nexus repo
+        default: false
+      deploy_svn:
+        required: true
+        type: boolean
+        description: publish to apache svn
         default: false
         
 jobs:
@@ -57,7 +62,8 @@ jobs:
 
       - name: Package & Release to maven
         if: ${{ inputs.deploy_maven }}
-        run: echo "deploy to maven" && mvn clean deploy -Papache-release -DskipTests -e || exit        
+        run: (echo "deploy to maven" && mvn clean deploy -Papache-release -DskipTests -e) || exit        
         
       - name: Release to svn
+        if: ${{ inputs.deploy_svn }}
         run: hugegraph-dist/scripts/apache-release.sh ${{ inputs.release_version }} ${{ secrets.RELEASE_USERNAME }} ${{ secrets.RELEASE_PASSWORD }}
