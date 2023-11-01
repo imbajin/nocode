@@ -11,7 +11,7 @@ on:
         default: 'release-1.0.0'
       release_version:
         required: true
-        description: only influence SVN
+        description: release_version - only influence SVN
         default: '1.0.0'
       deploy_maven:
         required: true
