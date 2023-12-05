@@ -53,6 +53,10 @@ jobs:
           key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
           restore-keys: ${{ runner.os }}-m2
 
+      - name: Use Node.js 16
+        uses: actions/setup-node@v3
+        with:
+          node-version: '16'
       - name: Get Yarn path
         id: yarn-cache-dir-path
         run: echo "::set-output name=dir::$(yarn cache dir)"
