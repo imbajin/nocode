@@ -17,6 +17,11 @@ on:
         type: boolean
         description: publish to maven nexus
         default: false
+      deploy_svn:
+        required: true
+        type: boolean
+        description: publish to apache svn
+        default: false
         
 jobs:
   build:
@@ -61,4 +66,5 @@ jobs:
         
         
       - name: Release to svn
+        if: ${{ inputs.deploy_svn }}
         run: hugegraph-dist/scripts/apache-release.sh ${{ inputs.release_version }} ${{ secrets.RELEASE_USERNAME }} ${{ secrets.RELEASE_PASSWORD }}
