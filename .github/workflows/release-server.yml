@@ -8,10 +8,10 @@ on:
         default: 'apache/hugegraph'
       repository_branch:
         required: true
-        default: 'release-1.0.0'
+        default: 'release-1.2.0'
       release_version:
         required: true
-        default: '1.0.0'
+        default: '1.2.0'
       deploy_maven:
         required: true
         type: boolean
@@ -35,7 +35,7 @@ jobs:
           gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
           
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           repository: ${{ inputs.repository_url }}
           ref: ${{ inputs.repository_branch }}
@@ -53,11 +53,11 @@ jobs:
 
       - name: Package Only
         if: ${{ !inputs.deploy_maven }}
-        run: (echo "just building" && mvn clean package -Papache-release -DskipTests -ntp -e) || exit
+        run: (echo "just building" && mvn clean package -Papache-release,stage -DskipTests -ntp -e) || exit
 
       - name: Package & Release to maven
         if: ${{ inputs.deploy_maven }}
-        run: echo "deploy to maven" && mvn clean deploy -Papache-release -DskipTests -e || exit 
+        run: echo "deploy to maven" && mvn clean deploy -Papache-release,stage -DskipTests -e || exit 
         
         
       - name: Release to svn
