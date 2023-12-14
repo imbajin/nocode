@@ -67,4 +67,4 @@ jobs:
         
       - name: Release to svn
         if: ${{ inputs.deploy_svn }}
-        run: hugegraph-dist/scripts/apache-release.sh ${{ inputs.release_version }} ${{ secrets.RELEASE_USERNAME }} ${{ secrets.RELEASE_PASSWORD }}
+        run: hugegraph-server/hugegraph-dist/scripts/apache-release.sh ${{ inputs.release_version }} ${{ secrets.RELEASE_USERNAME }} ${{ secrets.RELEASE_PASSWORD }}
