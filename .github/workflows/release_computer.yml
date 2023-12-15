@@ -62,9 +62,8 @@ jobs:
 
       - name: Package & Release to maven
         if: ${{ inputs.deploy_maven }}
-        run: echo "deploy to maven" && mvn clean deploy -Papache-release,stage -DskipTests -e || exit 
+        run: (echo "deploy to maven" && mvn clean deploy -Papache-release,stage -DskipTests -e) || exit 
         
       - name: Release to svn
         if: ${{ inputs.deploy_svn }}
-        run: computer-dist/scripts/apache-release.sh ${{ inputs.release_version }} ${{ secrets.RELEASE_USERNAME }} \
-             ${{ secrets.RELEASE_PASSWORD }} ${{ inputs.repository_branch }}
+        run: computer-dist/scripts/apache-release.sh ${{ inputs.release_version }} ${{ secrets.RELEASE_USERNAME }} ${{ secrets.RELEASE_PASSWORD }}
