@@ -66,10 +66,11 @@ jobs:
         run: |
           echo "deploy to maven" && mvn clean deploy -Papache-release,stage -DskipTests -e || exit 
 
-      - name: Package & Release to maven
+      - name: Check consistency
         run: |
           md5sum hugegraph-server/apache-hugegraph-incubating-1.2.0/lib/hugegraph-com*
           md5sum ~/.m2/repository/org/apache/hugegraph/hugegraph-common/1.2.0/*.jar
+          curl https://repository.apache.org/content/groups/staging/org/apache/hugegraph/hugegraph-common/1.2.0/hugegraph-common-1.2.0.jar.md5
         
         
       - name: Release to svn
