@@ -68,9 +68,9 @@ jobs:
 
       - name: Check consistency
         run: |
-          md5sum hugegraph-server/apache-hugegraph-incubating-1.2.0/lib/hugegraph-com*
-          md5sum ~/.m2/repository/org/apache/hugegraph/hugegraph-common/1.2.0/*.jar
-          curl https://repository.apache.org/content/groups/staging/org/apache/hugegraph/hugegraph-common/1.2.0/hugegraph-common-1.2.0.jar.md5
+          md5sum hugegraph-server/apache-hugegraph-incubating-${{ inputs.release_version }}/lib/hugegraph-com*
+          md5sum ~/.m2/repository/org/apache/hugegraph/hugegraph-common/${{ inputs.release_version }}/*.jar
+          curl https://repository.apache.org/content/groups/staging/org/apache/hugegraph/hugegraph-common/${{ inputs.release_version }}/hugegraph-common-${{ inputs.release_version }}.jar.md5
         
         
       - name: Release to svn
