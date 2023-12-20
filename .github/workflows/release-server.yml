@@ -56,13 +56,20 @@ jobs:
       - name: Replace maven settings
         run: mkdir -p ~/.m2 && echo '${{ secrets.M2_SETTINGS }}' > ~/.m2/settings.xml
 
-      - name: Package Only
+      - name: Package/Install Only
         if: ${{ !inputs.deploy_maven }}
-        run: (echo "just building" && mvn clean package -Papache-release,stage -DskipTests -ntp -e) || exit
+        run: |
+          (echo "just building" && mvn clean install -Papache-release,stage -DskipTests -e) || exit
 
       - name: Package & Release to maven
         if: ${{ inputs.deploy_maven }}
-        run: echo "deploy to maven" && mvn clean deploy -Papache-release,stage -DskipTests -e || exit 
+        run: |
+          echo "deploy to maven" && mvn clean deploy -Papache-release,stage -DskipTests -e || exit 
+
+      - name: Package & Release to maven
+        run: |
+          md5sum hugegraph-server/apache-hugegraph-incubating-1.2.0/lib/hugegraph-com*
+          md5sum ~/.m2/repository/org/apache/hugegraph/hugegraph-common/1.2.0/*.jar
         
         
       - name: Release to svn
