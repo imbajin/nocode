@@ -38,8 +38,8 @@ jobs:
         id: import_gpg
         uses: crazy-max/ghaction-import-gpg@v5
         with:
-          # https://github.com/crazy-max/ghaction-import-gpg#prerequisites
-          # # macOS: gpg --armor --export-secret-key joe@foo.bar | pbcopy
+          # refer: github.com/crazy-max/ghaction-import-gpg#prerequisites
+          # MacOS: gpg --armor --export-secret-key joe@foo.bar | pbcopy
           gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
           
       - name: Checkout
