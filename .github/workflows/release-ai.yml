@@ -1,0 +1,61 @@
+name: Release Commons(HG)
+
+on:
+  workflow_dispatch:
+    inputs:
+      repository_url:
+        required: true
+        description: remote repository url
+        default: 'apache/incubator-hugegraph-ai'
+      repository_branch:
+        required: true
+        description: remote repository branch
+        default: 'release-1.3.0'
+      release_version:
+        required: true
+        description: release_version - only influence SVN
+        default: '1.3.0'
+      deploy_pip:
+        required: true
+        type: boolean
+        description: publish to pip repo (BETA)
+        default: false
+      deploy_svn:
+        required: true
+        type: boolean
+        description: publish to apache svn
+        default: false
+        
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+#      - name: Install Python
+#        uses: actions/setup-python@v4
+#        with:
+#          cache: 'pip'
+#          python-version: '3.9'
+       
+      - name: Import GPG key
+        id: import_gpg
+        uses: crazy-max/ghaction-import-gpg@v5
+        with:
+          # refer: github.com/crazy-max/ghaction-import-gpg#prerequisites
+          # MacOS: gpg --armor --export-secret-key joe@foo.bar | pbcopy
+          gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
+          
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ inputs.repository_url }}
+          ref: ${{ inputs.repository_branch }}
+          fetch-depth: 5
+
+#      - name: Package Only
+#        if: ${{ !inputs.deploy_pip }} # TODO: replace with pip settings
+#        run: |
+#          xxx
+
+      - name: Release to svn
+        if: ${{ inputs.deploy_svn }}
+        run: ./scripts/apache-release.sh ${{ inputs.release_version }} ${{ secrets.RELEASE_USERNAME }} ${{ secrets.RELEASE_PASSWORD }}
