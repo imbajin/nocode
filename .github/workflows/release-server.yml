@@ -8,10 +8,10 @@ on:
         default: 'apache/hugegraph'
       repository_branch:
         required: true
-        default: 'release-1.2.0'
+        default: 'release-1.5.0'
       release_version:
         required: true
-        default: '1.2.0'
+        default: '1.5.0'
       deploy_maven:
         required: true
         type: boolean
@@ -28,9 +28,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Install JDK 8
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
-          java-version: '8'
+          java-version: '11'
           distribution: 'adopt'
        
       - name: Import GPG key
@@ -46,12 +46,12 @@ jobs:
           ref: ${{ inputs.repository_branch }}
           fetch-depth: 2
 
-      - name: Cache Maven packages
-        uses: actions/cache@v3
-        with:
-          path: ~/.m2/repository
-          key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
-          restore-keys: ${{ runner.os }}-m2
+      # - name: Cache Maven packages
+      #   uses: actions/cache@v3
+      #   with:
+      #     path: ~/.m2/repository
+      #     key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
+      #     restore-keys: ${{ runner.os }}-m2
           
       - name: Replace maven settings
         run: mkdir -p ~/.m2 && echo '${{ secrets.M2_SETTINGS }}' > ~/.m2/settings.xml
@@ -65,13 +65,6 @@ jobs:
         if: ${{ inputs.deploy_maven }}
         run: |
           echo "deploy to maven" && mvn clean deploy -Papache-release,stage -DskipTests -e || exit 
-
-      - name: Check consistency
-        run: |
-          md5sum hugegraph-server/apache-hugegraph-incubating-${{ inputs.release_version }}/lib/hugegraph-com*
-          md5sum ~/.m2/repository/org/apache/hugegraph/hugegraph-common/${{ inputs.release_version }}/*.jar
-          curl https://repository.apache.org/content/groups/staging/org/apache/hugegraph/hugegraph-common/${{ inputs.release_version }}/hugegraph-common-${{ inputs.release_version }}.jar.md5
-        
         
       - name: Release to svn
         if: ${{ inputs.deploy_svn }}
