@@ -1,4 +1,4 @@
-name: Release Commons(HG)
+name: Release Ai(HG)
 
 on:
   workflow_dispatch:
