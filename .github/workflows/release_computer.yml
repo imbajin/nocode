@@ -58,12 +58,12 @@ jobs:
         
       - name: Package Only
         if: ${{ !inputs.deploy_maven }}
-        run: (echo "just building" && mvn clean package -Papache-release,stage -DskipTests -ntp -e) || exit
+        run: (echo "just building" && cd computer && mvn clean package -Papache-release,stage -DskipTests -ntp -e) || exit
 
       - name: Package & Release to maven
         if: ${{ inputs.deploy_maven }}
-        run: (echo "deploy to maven" && mvn clean deploy -Papache-release,stage -DskipTests -e) || exit 
+        run: (echo "deploy to maven" && cd computer && mvn clean deploy -Papache-release,stage -DskipTests -e) || exit 
         
       - name: Release to svn
         if: ${{ inputs.deploy_svn }}
-        run: computer-dist/scripts/apache-release.sh ${{ inputs.release_version }} ${{ secrets.RELEASE_USERNAME }} ${{ secrets.RELEASE_PASSWORD }}
+        run: cd computer && computer-dist/scripts/apache-release.sh ${{ inputs.release_version }} ${{ secrets.RELEASE_USERNAME }} ${{ secrets.RELEASE_PASSWORD }}
