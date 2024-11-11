@@ -1,4 +1,4 @@
-name: Release Ai(HG)
+name: Release AI(HG)
 
 on:
   workflow_dispatch:
