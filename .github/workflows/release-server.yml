@@ -8,10 +8,10 @@ on:
         default: 'apache/hugegraph'
       repository_branch:
         required: true
-        default: 'release-1.5.0'
+        default: 'release-1.7.0'
       release_version:
         required: true
-        default: '1.5.0'
+        default: '1.7.0'
       deploy_maven:
         required: true
         type: boolean
@@ -27,7 +27,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Install JDK 8
+      - name: Install JDK 11
         uses: actions/setup-java@v4
         with:
           java-version: '11'
