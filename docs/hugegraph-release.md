@@ -7,7 +7,7 @@ reviewed source ref and the Secrets already configured in this repository.
 | --- | --- | --- |
 | Server | Root Maven reactor; Java 17; version 1.8.0 | Source and binary |
 | Toolchain | Root Maven reactor; Java 17; SDK 1.8.0 | Source and binary |
-| Computer | `computer/` Maven reactor; existing 1.5.0 ref; Java 11 | Source |
+| Computer | `computer/` Maven reactor; existing 1.5.0 ref; Java 11 by default | Source |
 | AI | Existing 1.5.0 ref; no PyPI publication | Source |
 
 ## Select the operation
@@ -35,7 +35,8 @@ leave a partial staging upload; inspect that repository before retrying.
 
 Use `repository_url`, `repository_branch` (branch, tag, or full SHA), and
 `release_version` to choose the source. Server and Toolchain default to `master`;
-Computer and AI preserve their existing release refs. A version mismatch fails
+Computer and AI preserve their existing release refs. For Computer 1.8.0 source,
+select `java_version=17`; the existing 1.5.0 default keeps Java 11. A version mismatch fails
 before upload. Each run records the resolved full source SHA and uses it for the
 source archive as well as the build. No remote release branch is required.
 

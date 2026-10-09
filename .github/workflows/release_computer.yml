@@ -13,6 +13,12 @@ on:
       release_version:
         required: true
         default: '1.5.0'
+      java_version:
+        description: JDK for the selected source (1.8.0 requires 17)
+        required: true
+        type: choice
+        default: '11'
+        options: ['11', '17']
       deploy_maven:
         description: Upload to Apache Maven staging (never promote)
         required: true
@@ -65,10 +71,10 @@ jobs:
           sudo apt-get update
           sudo apt-get install --yes --no-install-recommends subversion
 
-      - name: Install JDK 11
+      - name: Install selected JDK
         uses: actions/setup-java@v4
         with:
-          java-version: '11'
+          java-version: ${{ inputs.java_version }}
           distribution: temurin
           overwrite-settings: false
 
