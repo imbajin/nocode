@@ -34,7 +34,7 @@ jobs:
           fields = {c.tag.split('}')[-1]: c.text or '' for c in server}
           token = base64.b64encode((fields.get('username', '') + ':' + fields.get('password', '')).encode()).decode()
           def get(url, authenticated=True):
-              headers = {'Accept': 'application/json'}
+              headers = {'Accept': 'application/json' if url.endswith('profile_repositories') else 'application/octet-stream'}
               if authenticated:
                   headers['Authorization'] = 'Basic ' + token
               with urllib.request.urlopen(urllib.request.Request(url, headers=headers), timeout=60) as response:
@@ -49,23 +49,30 @@ jobs:
               if not re.fullmatch(r'orgapachehugegraph-[0-9]+', identifier):
                   continue
               url = 'https://repository.apache.org/content/repositories/' + identifier
-              row = {'id': identifier, 'type': repository.get('type'), 'url': url}
-              if expected:
-                  artifact = url + '/org/apache/hugegraph/hugegraph-core/1.8.0/hugegraph-core-1.8.0.jar'
+              row = {'id': identifier, 'type': repository.get('type'), 'url': url,
+                     'repository_uri': repository.get('repositoryURI')}
+              endpoints = [url, 'https://repository.apache.org/service/local/repositories/' + identifier + '/content']
+              for candidate_url in endpoints:
+                  artifact = candidate_url + '/org/apache/hugegraph/hugegraph-core/1.8.0/hugegraph-core-1.8.0.jar'
                   try:
-                      digest = hashlib.sha512(get(artifact)).hexdigest()
+                      payload = get(artifact)
                   except urllib.error.HTTPError as error:
-                      row['artifact_http_status'] = error.code
+                      row[candidate_url] = {'artifact_http_status': error.code}
                   else:
+                      if not payload.startswith(b'PK'):
+                          row[candidate_url] = {'invalid_jar': True}
+                          continue
+                      digest = hashlib.sha512(payload).hexdigest()
+                      row['sdk_url'] = candidate_url
                       row['core_sha512'] = digest
-                      row['matches_build'] = digest == expected
-                      if row['matches_build']:
-                          try:
-                              anonymous = hashlib.sha512(get(artifact, False)).hexdigest()
-                          except urllib.error.HTTPError as error:
-                              row['anonymous_http_status'] = error.code
-                          else:
-                              row['anonymous_matches_build'] = anonymous == expected
+                      row['matches_build'] = bool(expected) and digest == expected
+                      try:
+                          anonymous = hashlib.sha512(get(artifact, False)).hexdigest()
+                      except urllib.error.HTTPError as error:
+                          row['anonymous_http_status'] = error.code
+                      else:
+                          row['anonymous_matches_build'] = anonymous == digest
+                      break
               results.append(row)
           output = json.dumps(results, indent=2)
           print(output)
