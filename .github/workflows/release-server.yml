@@ -178,14 +178,25 @@ jobs:
           test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
           mvn -B -ntp -s "$RUNNER_TEMP/release-settings.xml" \
             -Dmaven.repo.local="$RUNNER_TEMP/maven-repository" \
-            clean deploy -Papache-release,stage -DskipTests -DdeployAtEnd=true
+            clean deploy -Papache-release,stage -DskipTests -DdeployAtEnd=false
 
       - name: Save built binary distribution
+        # The core hash below binds Nexus verification to this exact signed build.
         uses: actions/upload-artifact@v4
         with:
           name: binary-hugegraph-${{ inputs.release_version }}
           path: source/target/apache-hugegraph-${{ inputs.release_version }}.tar.gz
           if-no-files-found: error
+
+      - name: Record staged core artifact hash
+        if: ${{ inputs.deploy_maven }}
+        env:
+          SIGNING_FINGERPRINT: ${{ steps.import_gpg.outputs.fingerprint }}
+        run: |
+          sha512sum "hugegraph-server/hugegraph-core/target/hugegraph-core-$RELEASE_VERSION.jar" \
+            | tee -a "$RUNNER_TEMP/release-context.txt"
+          printf 'signing_fingerprint=%s\n' "$SIGNING_FINGERPRINT" \
+            >> "$RUNNER_TEMP/release-context.txt"
 
       - name: Prepare signed SVN candidate
         if: ${{ inputs.deploy_svn }}

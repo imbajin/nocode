@@ -6,12 +6,14 @@ on:
       - '.github/workflows/release*.yml'
       - '.github/workflows/scripts/release-svn.sh'
       - 'tests/test_release_svn.py'
+      - 'tests/test_maven_deploy.py'
   push:
     branches: [master]
     paths:
       - '.github/workflows/release*.yml'
       - '.github/workflows/scripts/release-svn.sh'
       - 'tests/test_release_svn.py'
+      - 'tests/test_maven_deploy.py'
 
 permissions:
   contents: read
@@ -31,5 +33,5 @@ jobs:
           "$(go env GOPATH)/bin/actionlint" .github/workflows/release*.yml
           bash -n .github/workflows/scripts/release-svn.sh
           shellcheck .github/workflows/scripts/release-svn.sh
-      - name: Test signatures and local SVN transactions
+      - name: Test local Maven deployment, signatures and SVN transactions
         run: python3 -m unittest discover -s tests -v

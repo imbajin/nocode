@@ -26,6 +26,13 @@ including its distribution and test modules. They do not promote, release, or
 close Nexus repositories. A successful Maven deployment followed by a failed SVN
 upload remains a Maven upload; check the run before retrying either operation.
 
+Deployment is explicitly per module (`deployAtEnd=false`). Apache parent 23's
+deploy plugin 2.8.2 can silently leave its deferred queue unflushed when build
+extensions create separate plugin realms. The CI file-repository regression
+checks that the publisher configuration actually deploys every fixture POM,
+rather than accepting Maven's exit status alone. A later reactor failure can
+leave a partial staging upload; inspect that repository before retrying.
+
 Use `repository_url`, `repository_branch` (branch, tag, or full SHA), and
 `release_version` to choose the source. Server and Toolchain default to `master`;
 Computer and AI preserve their existing release refs. A version mismatch fails

@@ -178,7 +178,7 @@ jobs:
           test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
           mvn -B -ntp -s "$RUNNER_TEMP/release-settings.xml" \
             -Dmaven.repo.local="$RUNNER_TEMP/maven-repository" \
-            clean deploy -Papache-release,stage -DskipTests -DdeployAtEnd=true
+            clean deploy -Papache-release,stage -DskipTests -DdeployAtEnd=false
 
       - name: Prepare signed SVN candidate
         if: ${{ inputs.deploy_svn }}

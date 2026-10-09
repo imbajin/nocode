@@ -199,7 +199,8 @@ jobs:
         if: ${{ inputs.staging_repository != '' }}
         run: |
           # Fresh repository: installed same-version artifacts cannot mask a missing SDK.
-          for artifact in hugegraph-common hugegraph-core hugegraph-server hg-pd-client hg-pd-common hg-pd-grpc hg-store-common; do
+          # Match the upstream release SDK verifier: shared Client libraries plus Hubble core.
+          for artifact in hugegraph-common hugegraph-core hg-pd-client hg-pd-common hg-pd-grpc; do
             marker="$RUNNER_TEMP/maven-repository/org/apache/hugegraph/$artifact/1.8.0/_remote.repositories"
             for extension in jar pom; do
               mvn -N -B -ntp -U -s "$RUNNER_TEMP/release-settings.xml" \
@@ -278,7 +279,7 @@ jobs:
           test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
           mvn -B -ntp -s "$RUNNER_TEMP/release-settings.xml" \
             -Dmaven.repo.local="$RUNNER_TEMP/maven-repository" \
-            clean deploy -Papache-release,stage -DskipTests -DdeployAtEnd=true
+            clean deploy -Papache-release,stage -DskipTests -DdeployAtEnd=false
 
       - name: Save built binary distribution
         uses: actions/upload-artifact@v4
