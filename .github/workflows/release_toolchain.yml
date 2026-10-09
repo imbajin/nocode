@@ -136,9 +136,10 @@ jobs:
         if: ${{ inputs.staging_repository != '' }}
         env:
           STAGING_REPOSITORY: ${{ inputs.staging_repository }}
+          COPY_UPLOAD_CREDENTIALS: ${{ inputs.deploy_maven }}
         run: |
           python3 - <<'PY'
-          import os, re, xml.etree.ElementTree as ET
+          import copy, os, re, xml.etree.ElementTree as ET
           from pathlib import Path
           url = os.environ['STAGING_REPOSITORY'].rstrip('/')
           if not re.fullmatch(r'https://repository\.apache\.org/content/repositories/orgapachehugegraph-[0-9]+', url):
@@ -173,6 +174,21 @@ jobs:
           snapshots = ET.SubElement(repository, tag('snapshots'))
           ET.SubElement(snapshots, tag('enabled')).text = 'false'
           ET.SubElement(child(root, 'activeProfiles'), tag('activeProfile')).text = 'candidate-sdk'
+          # The validated URL stays on the same Apache host as the upload target.
+          # Authenticated upload runs may consume an open staging repository with
+          # the existing identity; build-only runs retain anonymous public settings.
+          if os.environ['COPY_UPLOAD_CREDENTIALS'] == 'true':
+              servers = root.find(tag('servers'))
+              if servers is not None:
+                  source_server = next((server for server in servers
+                                        if server.findtext(tag('id')) == 'apache.releases.https'), None)
+                  if source_server is not None:
+                      for server in list(servers):
+                          if server.findtext(tag('id')) == 'candidate-sdk':
+                              servers.remove(server)
+                      candidate_server = copy.deepcopy(source_server)
+                      candidate_server.find(tag('id')).text = 'candidate-sdk'
+                      servers.append(candidate_server)
           tree.write(path, encoding='utf-8', xml_declaration=True)
           print(f'SDK staging repository: {url}')
           with open(Path(os.environ['RUNNER_TEMP']) / 'release-context.txt', 'a') as f:
@@ -184,12 +200,12 @@ jobs:
         run: |
           # Fresh repository: installed same-version artifacts cannot mask a missing SDK.
           for artifact in hugegraph-common hugegraph-core hugegraph-server hg-pd-client hg-pd-common hg-pd-grpc hg-store-common; do
-            mvn -N -B -ntp -U -s "$RUNNER_TEMP/release-settings.xml" \
-              -Dmaven.repo.local="$RUNNER_TEMP/maven-repository" -Pstage \
-              org.apache.maven.plugins:maven-dependency-plugin:3.8.1:get \
-              "-Dartifact=org.apache.hugegraph:$artifact:1.8.0" -Dtransitive=false
             marker="$RUNNER_TEMP/maven-repository/org/apache/hugegraph/$artifact/1.8.0/_remote.repositories"
             for extension in jar pom; do
+              mvn -N -B -ntp -U -s "$RUNNER_TEMP/release-settings.xml" \
+                -Dmaven.repo.local="$RUNNER_TEMP/maven-repository" -Pstage \
+                org.apache.maven.plugins:maven-dependency-plugin:3.8.1:get \
+                "-Dartifact=org.apache.hugegraph:$artifact:1.8.0:$extension" -Dtransitive=false
               grep -Fx "$artifact-1.8.0.$extension>candidate-sdk=" "$marker" > /dev/null || {
                 echo "SDK $artifact $extension was not downloaded from the requested staging repository"; exit 1;
               }
