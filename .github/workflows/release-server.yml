@@ -33,8 +33,8 @@ jobs:
               raise SystemExit('Missing Apache release server')
           fields = {c.tag.split('}')[-1]: c.text or '' for c in server}
           token = base64.b64encode((fields.get('username', '') + ':' + fields.get('password', '')).encode()).decode()
-          def get(url, authenticated=True):
-              headers = {'Accept': 'application/json' if url.endswith('profile_repositories') else 'application/octet-stream'}
+          def get(url, authenticated=True, json_content=False):
+              headers = {'Accept': 'application/json' if json_content or url.endswith('profile_repositories') else 'application/octet-stream'}
               if authenticated:
                   headers['Authorization'] = 'Basic ' + token
               with urllib.request.urlopen(urllib.request.Request(url, headers=headers), timeout=60) as response:
@@ -51,6 +51,13 @@ jobs:
               url = 'https://repository.apache.org/content/repositories/' + identifier
               row = {'id': identifier, 'type': repository.get('type'), 'url': url,
                      'repository_uri': repository.get('repositoryURI')}
+              browse = 'https://repository.apache.org/service/local/repositories/' + identifier + '/content/org/apache/hugegraph/'
+              try:
+                  entries = json.loads(get(browse, json_content=True))['data']
+              except urllib.error.HTTPError as error:
+                  row['browse_http_status'] = error.code
+              else:
+                  row['artifact_directories'] = [entry.get('relativePath') for entry in entries]
               endpoints = [url, 'https://repository.apache.org/service/local/repositories/' + identifier + '/content']
               for candidate_url in endpoints:
                   artifact = candidate_url + '/org/apache/hugegraph/hugegraph-core/1.8.0/hugegraph-core-1.8.0.jar'
