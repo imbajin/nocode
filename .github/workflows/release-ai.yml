@@ -124,7 +124,7 @@ jobs:
           script=scripts/apache-release-ci.sh
           trap 'rm -f "$script"' EXIT
           sed 's/^set -exo pipefail$/set -eo pipefail/' scripts/apache-release.sh > "$script"
-          if grep -Eq '^set .*x' "$script"; then
+          if grep -Eq '^set -[^[:space:]]*x|^set -o xtrace' "$script"; then
             echo 'Unsupported tracing in native release script'; exit 1
           fi
           bash -e "$script" "$RELEASE_VERSION" "$SVN_USERNAME" "$SVN_PASSWORD"
