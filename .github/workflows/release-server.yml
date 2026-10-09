@@ -23,10 +23,6 @@ on:
         required: true
         type: boolean
         default: false
-      svn_path:
-        description: Candidate path under SVN dev/hugegraph (empty uses version)
-        required: false
-        default: ''
 
 permissions:
   contents: read
@@ -45,7 +41,6 @@ jobs:
         working-directory: source
     env:
       RELEASE_VERSION: ${{ inputs.release_version }}
-      SVN_PATH: ${{ inputs.svn_path }}
       COMPONENT: server
     steps:
       - name: Checkout publisher
@@ -79,26 +74,10 @@ jobs:
 
       - name: Validate source version and record SHA
         run: |
-          python3 - <<'PY'
-          import os, re, subprocess, xml.etree.ElementTree as ET
-          from pathlib import Path
-          expected = os.environ['RELEASE_VERSION']
-          if not re.fullmatch(r'[0-9]+\.[0-9]+\.[0-9]+', expected):
-              raise SystemExit('Use a numeric release version, without SNAPSHOT or RC suffix')
-          ns = {'m': 'http://maven.apache.org/POM/4.0.0'}
-          pom = ET.parse('pom.xml').getroot()
-          version = pom.findtext('m:version', namespaces=ns)
-          if version == '${revision}':
-              version = pom.findtext('m:properties/m:revision', namespaces=ns)
-          if version != expected:
-              raise SystemExit(f'Source version {version!r} does not match {expected!r}')
-          sha = subprocess.check_output(['git', 'rev-parse', 'HEAD'], text=True).strip()
-          with open(os.environ['GITHUB_ENV'], 'a') as f:
-              f.write(f'SOURCE_SHA={sha}\n')
-          receipt = Path(os.environ['RUNNER_TEMP']) / 'release-context.txt'
-          receipt.write_text(f'component={os.environ["COMPONENT"]}\nsource_sha={sha}\nversion={version}\n')
-          print(receipt.read_text(), end='')
-          PY
+          python3 "$GITHUB_WORKSPACE/publisher/.github/workflows/scripts/check-maven-release.py" "$RELEASE_VERSION" pom.xml
+          echo "SOURCE_SHA=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
+          printf 'component=%s\nsource_sha=%s\nversion=%s\n' "$COMPONENT" "$(git rev-parse HEAD)" "$RELEASE_VERSION" \
+            | tee "$RUNNER_TEMP/release-context.txt"
 
       - name: Prepare public Maven settings
         run: |
@@ -120,43 +99,8 @@ jobs:
           mvn -B -ntp -s "$RUNNER_TEMP/release-settings.xml" \
             -Dmaven.repo.local="$RUNNER_TEMP/maven-repository" -Papache-release,stage \
             help:effective-pom -Doutput="$RUNNER_TEMP/release-effective-pom.xml"
-          python3 - <<'PY'
-          import os, xml.etree.ElementTree as ET
-          from pathlib import Path
-          temp = Path(os.environ['RUNNER_TEMP'])
-          model = ET.parse(temp / 'release-effective-pom.xml').getroot()
-          ns = {'m': 'http://maven.apache.org/POM/4.0.0'}
-          settings = ET.parse(temp / 'release-settings.xml').getroot()
-          # Support namespaced and legacy unnamespaced personal settings without showing values.
-          server_ids = {element.text for server in settings.iter()
-                        if server.tag.split('}')[-1] == 'server'
-                        for element in server if element.tag.split('}')[-1] == 'id'}
-          projects = [model] if model.tag.split('}')[-1] == 'project' else model.findall('m:project', ns)
-          if not projects:
-              raise SystemExit('Effective POM contains no projects')
-          lines = []
-          for project in projects:
-              version = project.findtext('m:version', namespaces=ns)
-              artifact = project.findtext('m:artifactId', namespaces=ns)
-              if version != os.environ['RELEASE_VERSION']:
-                  raise SystemExit(f'Effective version mismatch for {artifact}: {version}')
-              repository = project.find('m:distributionManagement/m:repository', ns)
-              if repository is None:
-                  raise SystemExit(f'Missing release deploy repository for {artifact}')
-              repository_id = repository.findtext('m:id', namespaces=ns)
-              url = repository.findtext('m:url', namespaces=ns)
-              if repository_id != 'apache.releases.https' or url != 'https://repository.apache.org/service/local/staging/deploy/maven2':
-                  raise SystemExit(f'Unsupported upload target for {artifact}: {repository_id} {url}')
-              if repository_id not in server_ids:
-                  raise SystemExit(f'M2_SETTINGS lacks server id {repository_id}')
-              for plugin in project.findall('m:build/m:plugins/m:plugin', ns):
-                  if plugin.findtext('m:artifactId', namespaces=ns) == 'nexus-staging-maven-plugin':
-                      raise SystemExit('Use plain staging deploy; Nexus close/promote is not allowed')
-              lines.append(f'maven_module={artifact}:{version} target={url} server_id={repository_id}')
-          with open(temp / 'release-context.txt', 'a') as f:
-              f.write('\n'.join(lines) + '\n')
-          print('\n'.join(lines))
-          PY
+          python3 "$GITHUB_WORKSPACE/publisher/.github/workflows/scripts/check-maven-release.py" \
+            "$RELEASE_VERSION" "$RUNNER_TEMP/release-effective-pom.xml" "$RUNNER_TEMP/release-settings.xml"
 
       - name: Import signing key for uploads
         if: ${{ inputs.deploy_maven || inputs.deploy_svn }}
@@ -181,52 +125,22 @@ jobs:
             clean deploy -Papache-release,stage -DskipTests -DdeployAtEnd=false
 
       - name: Save built binary distribution
-        # The core hash below binds Nexus verification to this exact signed build.
         uses: actions/upload-artifact@v4
         with:
           name: binary-hugegraph-${{ inputs.release_version }}
           path: source/target/apache-hugegraph-${{ inputs.release_version }}.tar.gz
           if-no-files-found: error
 
-      - name: Record staged core artifact hash
-        if: ${{ inputs.deploy_maven }}
-        env:
-          SIGNING_FINGERPRINT: ${{ steps.import_gpg.outputs.fingerprint }}
-        run: |
-          sha512sum "hugegraph-server/hugegraph-core/target/hugegraph-core-$RELEASE_VERSION.jar" \
-            | tee -a "$RUNNER_TEMP/release-context.txt"
-          printf 'signing_fingerprint=%s\n' "$SIGNING_FINGERPRINT" \
-            >> "$RUNNER_TEMP/release-context.txt"
-
-      - name: Prepare signed SVN candidate
+      - name: Upload using the source repository release script
         if: ${{ inputs.deploy_svn }}
         env:
-          GPG_KEY_ID: ${{ steps.import_gpg.outputs.fingerprint }}
-        run: |
-          test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
-          bash "$GITHUB_WORKSPACE/publisher/.github/workflows/scripts/release-svn.sh" \
-            prepare "$COMPONENT" "$RELEASE_VERSION" "$SVN_PATH" \
-            "$GITHUB_WORKSPACE/source" "$RUNNER_TEMP/svn-candidate" \
-            2>&1 | tee -a "$RUNNER_TEMP/release-context.txt"
-
-      - name: Upload candidate to SVN dev
-        if: ${{ inputs.deploy_svn }}
-        env:
-          GPG_KEY_ID: ${{ steps.import_gpg.outputs.fingerprint }}
           SVN_USERNAME: ${{ secrets.RELEASE_USERNAME }}
           SVN_PASSWORD: ${{ secrets.RELEASE_PASSWORD }}
         run: |
-          bash "$GITHUB_WORKSPACE/publisher/.github/workflows/scripts/release-svn.sh" \
-            upload "$RELEASE_VERSION" "$SVN_PATH" "$RUNNER_TEMP/svn-candidate" \
-            2>&1 | tee -a "$RUNNER_TEMP/release-context.txt"
-
-      - name: Save signed SVN candidate
-        if: ${{ always() && inputs.deploy_svn }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: signed-svn-candidate-${{ github.run_id }}
-          path: ${{ runner.temp }}/svn-candidate/
-          if-no-files-found: ignore
+          [[ -n $SVN_USERNAME && -n $SVN_PASSWORD ]]
+          test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+          git branch -f "release-$RELEASE_VERSION" "$SOURCE_SHA"
+          bash -e install-dist/scripts/apache-release.sh "$RELEASE_VERSION" "$SVN_USERNAME" "$SVN_PASSWORD"
 
       - name: Summarize release context
         if: ${{ always() }}
@@ -235,14 +149,6 @@ jobs:
           if test -f "$RUNNER_TEMP/release-context.txt"; then
             cat "$RUNNER_TEMP/release-context.txt" >> "$GITHUB_STEP_SUMMARY"
           fi
-
-      - name: Save release context
-        if: ${{ always() }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: release-context-${{ env.COMPONENT }}
-          path: ${{ runner.temp }}/release-context.txt
-          if-no-files-found: ignore
 
       - name: Remove personal Maven settings
         if: ${{ always() }}

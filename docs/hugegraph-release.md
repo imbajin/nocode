@@ -37,19 +37,23 @@ Use `repository_url`, `repository_branch` (branch, tag, or full SHA), and
 `release_version` to choose the source. Server and Toolchain default to `master`;
 Computer and AI preserve their existing release refs. A version mismatch fails
 before upload. Each run records the resolved full source SHA and uses it for the
-source archive as well as the build. Creating a release branch is optional.
+source archive as well as the build. No remote release branch is required.
 
-`svn_path` defaults to the version directory. Set it to, for example,
-`1.8.0/RC1` to distinguish candidates while preserving version `1.8.0` in Maven
-coordinates, filenames, and archive prefixes. The publisher rejects overwriting
-existing files. Components can add their own packages to the same candidate.
+SVN uploads call the selected source repository's existing `apache-release.sh`.
+The workflow binds its local `release-VERSION` branch to the checked-out SHA;
+it does not create a remote branch. Native scripts archive, sign, hash, verify,
+and upload to `dev/hugegraph/VERSION`. Candidate RC subdirectories are deferred
+until native scripts support them. Existing AI refs' tracing is removed from a
+temporary copy beside the original before passing credentials.
 
 ## Maven staging and SDK provenance
 
 For Toolchain, provide `staging_repository` when consuming a specific Apache
 staging repository. Use its concrete repository URL, not the broad staging group.
 The workflow resolves SDK dependencies in an isolated Maven local repository and
-checks their repository origin. No local Server installation substitutes for
+checks their repository origin. The mirror uses the existing Apache server ID
+so Maven upload runs can authenticate without copying credentials; public builds
+remain anonymous. No local Server installation substitutes for
 remote staging consumption in the publisher workflow.
 
 The Toolchain 1.8.0 build needs readable SDK 1.8.0 dependencies. Build-only means no
@@ -57,8 +61,7 @@ private publisher credentials; it does not make unpublished dependencies
 available. Local same-source SDK builds used in development tests must be reported
 as source prevalidation, not staging verification.
 
-Before deployment, review the run summary's source SHA, version, reactor modules,
-repository ID and target. The effective POM must target
+Before deployment, review the run's source SHA, version, repository ID and target. The effective POM must target
 `apache.releases.https` at
 `https://repository.apache.org/service/local/staging/deploy/maven2`; the Maven
 settings must contain that server ID. The `stage` profile only adds a dependency
@@ -84,8 +87,8 @@ encrypted-key/passphrase configuration is not inferred from Secret names.
 
 ## Verification and formal migration
 
-The `Release CI checks` workflow runs actionlint, shellcheck, and real signatures
-and local SVN transaction tests with disposable keys. It never writes to Apache
+The `Release CI checks` workflow runs actionlint, shellcheck, a local Maven
+deployment regression, and real local SVN migration tests. It never writes to Apache
 SVN or Maven. Full publisher build and staging results are separate evidence.
 
 After upload, Doc validation verifies candidate signatures, SHA512, package

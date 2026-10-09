@@ -4,14 +4,14 @@ on:
   pull_request:
     paths:
       - '.github/workflows/release*.yml'
-      - '.github/workflows/scripts/release-svn.sh'
+      - '.github/workflows/scripts/*'
       - 'tests/test_release_svn.py'
       - 'tests/test_maven_deploy.py'
   push:
     branches: [master]
     paths:
       - '.github/workflows/release*.yml'
-      - '.github/workflows/scripts/release-svn.sh'
+      - '.github/workflows/scripts/*'
       - 'tests/test_release_svn.py'
       - 'tests/test_maven_deploy.py'
 
@@ -33,5 +33,6 @@ jobs:
           "$(go env GOPATH)/bin/actionlint" .github/workflows/release*.yml
           bash -n .github/workflows/scripts/release-svn.sh
           shellcheck .github/workflows/scripts/release-svn.sh
-      - name: Test local Maven deployment, signatures and SVN transactions
+          python3 -m py_compile .github/workflows/scripts/check-maven-release.py
+      - name: Test local Maven deployment and SVN migration
         run: python3 -m unittest discover -s tests -v

@@ -19,10 +19,6 @@ on:
         required: true
         type: boolean
         default: false
-      svn_path:
-        description: Candidate path under SVN dev/hugegraph (empty uses version)
-        required: false
-        default: ''
 
 permissions:
   contents: read
@@ -41,15 +37,7 @@ jobs:
         working-directory: source
     env:
       RELEASE_VERSION: ${{ inputs.release_version }}
-      SVN_PATH: ${{ inputs.svn_path }}
     steps:
-      - name: Checkout publisher
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ github.sha }}
-          path: publisher
-          persist-credentials: false
-
       - name: Checkout release source
         uses: actions/checkout@v4
         with:
@@ -122,35 +110,24 @@ jobs:
         with:
           gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
 
-      - name: Prepare signed SVN candidate
+      - name: Upload using the source repository release script
         if: ${{ inputs.deploy_svn }}
         env:
-          GPG_KEY_ID: ${{ steps.import_gpg.outputs.fingerprint }}
-        run: |
-          test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
-          bash "$GITHUB_WORKSPACE/publisher/.github/workflows/scripts/release-svn.sh" \
-            prepare ai "$RELEASE_VERSION" "$SVN_PATH" \
-            "$GITHUB_WORKSPACE/source" "$RUNNER_TEMP/svn-candidate" \
-            2>&1 | tee -a "$RUNNER_TEMP/release-context.txt"
-
-      - name: Upload candidate to SVN dev
-        if: ${{ inputs.deploy_svn }}
-        env:
-          GPG_KEY_ID: ${{ steps.import_gpg.outputs.fingerprint }}
           SVN_USERNAME: ${{ secrets.RELEASE_USERNAME }}
           SVN_PASSWORD: ${{ secrets.RELEASE_PASSWORD }}
         run: |
-          bash "$GITHUB_WORKSPACE/publisher/.github/workflows/scripts/release-svn.sh" \
-            upload "$RELEASE_VERSION" "$SVN_PATH" "$RUNNER_TEMP/svn-candidate" \
-            2>&1 | tee -a "$RUNNER_TEMP/release-context.txt"
-
-      - name: Save signed SVN candidate
-        if: ${{ always() && inputs.deploy_svn }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: signed-svn-candidate-${{ github.run_id }}
-          path: ${{ runner.temp }}/svn-candidate/
-          if-no-files-found: ignore
+          [[ -n $SVN_USERNAME && -n $SVN_PASSWORD ]]
+          test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+          git branch -f "release-$RELEASE_VERSION" "$SOURCE_SHA"
+          # Legacy AI refs enable tracing. Copy beside the original to preserve
+          # its dirname-based paths, removing only the known tracing option.
+          script=scripts/apache-release-ci.sh
+          trap 'rm -f "$script"' EXIT
+          sed 's/^set -exo pipefail$/set -eo pipefail/' scripts/apache-release.sh > "$script"
+          if grep -Eq '^set .*x' "$script"; then
+            echo 'Unsupported tracing in native release script'; exit 1
+          fi
+          bash -e "$script" "$RELEASE_VERSION" "$SVN_USERNAME" "$SVN_PASSWORD"
 
       - name: Summarize release context
         if: ${{ always() }}
@@ -159,11 +136,3 @@ jobs:
           if test -f "$RUNNER_TEMP/release-context.txt"; then
             cat "$RUNNER_TEMP/release-context.txt" >> "$GITHUB_STEP_SUMMARY"
           fi
-
-      - name: Save release context
-        if: ${{ always() }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: release-context-ai
-          path: ${{ runner.temp }}/release-context.txt
-          if-no-files-found: ignore
