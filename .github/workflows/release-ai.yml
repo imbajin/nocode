@@ -118,6 +118,7 @@ jobs:
         run: |
           [[ -n $SVN_USERNAME && -n $SVN_PASSWORD ]]
           test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+          git checkout --detach "$SOURCE_SHA"
           git branch -f "release-$RELEASE_VERSION" "$SOURCE_SHA"
           # Legacy AI refs enable tracing. Copy beside the original to preserve
           # its dirname-based paths, removing only the known tracing option.

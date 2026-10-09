@@ -139,6 +139,7 @@ jobs:
         run: |
           [[ -n $SVN_USERNAME && -n $SVN_PASSWORD ]]
           test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+          git checkout --detach "$SOURCE_SHA"
           git branch -f "release-$RELEASE_VERSION" "$SOURCE_SHA"
           bash -e install-dist/scripts/apache-release.sh "$RELEASE_VERSION" "$SVN_USERNAME" "$SVN_PASSWORD"
 
