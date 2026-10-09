@@ -120,6 +120,8 @@ jobs:
           tree = ET.parse(path)
           root = tree.getroot()
           namespace = root.tag.split('}')[0] + '}' if root.tag.startswith('{') else ''
+          if namespace:
+              ET.register_namespace('', namespace[1:-1])
           mirrors = root.find(namespace + 'mirrors')
           if mirrors is None:
               mirrors = ET.SubElement(root, namespace + 'mirrors')
