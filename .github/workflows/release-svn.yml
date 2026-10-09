@@ -1,57 +1,86 @@
-name: "Release SVN Packages"
+name: Release SVN Packages (after vote)
 
 on:
   workflow_dispatch:
     inputs:
       release_version:
         required: true
-        default: '1.0.0'
+        default: '1.8.0'
+      svn_path:
+        description: Voted candidate path under dev/hugegraph (empty uses version)
+        required: false
+        default: ''
       update_keys:
         required: true
         type: boolean
-        description: cp KEYS to release & delete dev
+        description: Copy dev KEYS to release and retain dev KEYS
         default: false
       delete_pkg:
         required: false
         type: boolean
-        description: delete old package in release
+        description: Delete a previous version in release after successful migration
         default: false
       pre_version:
         required: false
-        description: previous release version
-        default: 'x.x.x'
+        description: Previous release version to delete (must differ from this release)
+        default: ''
+
+permissions:
+  contents: read
+
+# This is an explicit post-vote entry point, never invoked by candidate uploads.
+concurrency:
+  group: hugegraph-svn-migration
+  cancel-in-progress: false
 
 jobs:
-  build:
+  promote:
     runs-on: ubuntu-latest
-    env:
-      DEV_PREFIX: https://dist.apache.org/repos/dist/dev/incubator/hugegraph
-      RELEASE_PREFIX: https://dist.apache.org/repos/dist/release/incubator/hugegraph
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: bash
+        working-directory: publisher
     steps:
-      # check https://downloads.apache.org/hugegraph after 1h at least
-      - name: Move Packages Only
-        if: ${{ !inputs.update_keys }}
-        run: |
-          svn mv ${DEV_PREFIX}/${{ inputs.release_version }} ${RELEASE_PREFIX}/${{ inputs.release_version }} \
-              --username ${{ secrets.RELEASE_USERNAME }} --password ${{ secrets.RELEASE_PASSWORD }} \
-              -m "move packages for ${{ inputs.release_version }}" || exit
+      - name: Checkout publisher
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          path: publisher
+          persist-credentials: false
 
-      - name: Move Package & KEYS & Delete KEYS in dev
-        if: ${{ inputs.update_keys }}
+      - name: Install SVN client
+        working-directory: ${{ github.workspace }}
         run: |
-          svn mv ${DEV_PREFIX}/${{ inputs.release_version }} ${RELEASE_PREFIX}/${{ inputs.release_version }} \
-              --username ${{ secrets.RELEASE_USERNAME }} --password ${{ secrets.RELEASE_PASSWORD }} \
-              -m "move packages for ${{ inputs.release_version }}" || exit
-          svn delete ${RELEASE_PREFIX}/KEYS -m "delete old KEYS" || exit
-          svm mv ${DEV_PREFIX}/KEYS ${RELEASE_PREFIX}/KEYS -m "move new KEYS for ${{ inputs.release_version }}"
-          
-      - name: Download SVN Sources (Release)
-        run: |
-          svn co ${RELEASE_PREFIX} release || exit
-          (cd release && ls -lh) || exit
-          svn log
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends subversion
 
-      - name: Delete Old Package
-        if: ${{ inputs.delete_pkg }}
+      - name: Migrate voted candidate to release
+        env:
+          RELEASE_VERSION: ${{ inputs.release_version }}
+          SVN_PATH: ${{ inputs.svn_path }}
+          UPDATE_KEYS: ${{ inputs.update_keys }}
+          DELETE_PKG: ${{ inputs.delete_pkg }}
+          PRE_VERSION: ${{ inputs.pre_version }}
+          SVN_USERNAME: ${{ secrets.RELEASE_USERNAME }}
+          SVN_PASSWORD: ${{ secrets.RELEASE_PASSWORD }}
         run: |
-          svn delete ${RELEASE_PREFIX}/${{ inputs.pre_version }} -m "Delete old version ${last_release_version}"
+          bash .github/workflows/scripts/release-svn.sh \
+            promote "$RELEASE_VERSION" "$SVN_PATH" "$UPDATE_KEYS" "$DELETE_PKG" "$PRE_VERSION" \
+            2>&1 | tee "$RUNNER_TEMP/release-context.txt"
+
+      - name: Summarize migration receipt
+        if: ${{ always() }}
+        working-directory: ${{ github.workspace }}
+        run: |
+          if test -f "$RUNNER_TEMP/release-context.txt"; then
+            cat "$RUNNER_TEMP/release-context.txt" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Save migration receipt
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: svn-migration-context
+          path: ${{ runner.temp }}/release-context.txt
+          if-no-files-found: ignore

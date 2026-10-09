@@ -4,58 +4,166 @@ on:
   workflow_dispatch:
     inputs:
       repository_url:
+        description: Source repository
         required: true
-        description: remote repository url
-        default: 'apache/incubator-hugegraph-ai'
+        default: 'apache/hugegraph-ai'
       repository_branch:
+        description: Source branch, tag, or full commit SHA
         required: true
-        description: remote repository branch
         default: 'release-1.5.0'
       release_version:
         required: true
-        description: release_version - only influence SVN
         default: '1.5.0'
-      deploy_pip:
-        required: true
-        type: boolean
-        description: publish to pip repo (BETA)
-        default: false
       deploy_svn:
+        description: Upload signed source candidate to SVN dev
         required: true
         type: boolean
-        description: publish to apache svn
         default: false
-        
+      svn_path:
+        description: Candidate path under SVN dev/hugegraph (empty uses version)
+        required: false
+        default: ''
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-ai-${{ inputs.release_version }}
+  cancel-in-progress: false
+
 jobs:
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: bash
+        working-directory: source
+    env:
+      RELEASE_VERSION: ${{ inputs.release_version }}
+      SVN_PATH: ${{ inputs.svn_path }}
     steps:
-#      - name: Install Python
-#        uses: actions/setup-python@v4
-#        with:
-#          cache: 'pip'
-#          python-version: '3.9'
-       
-      - name: Import GPG key
-        id: import_gpg
-        uses: crazy-max/ghaction-import-gpg@v5
+      - name: Checkout publisher
+        uses: actions/checkout@v4
         with:
-          # refer: github.com/crazy-max/ghaction-import-gpg#prerequisites
-          # MacOS: gpg --armor --export-secret-key joe@foo.bar | pbcopy
-          gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
-          
-      - name: Checkout
+          ref: ${{ github.sha }}
+          path: publisher
+          persist-credentials: false
+
+      - name: Checkout release source
         uses: actions/checkout@v4
         with:
           repository: ${{ inputs.repository_url }}
           ref: ${{ inputs.repository_branch }}
-          fetch-depth: 5
+          path: source
+          persist-credentials: false
 
-#      - name: Package Only
-#        if: ${{ !inputs.deploy_pip }} # TODO: replace with pip settings
-#        run: |
-#          xxx
-
-      - name: Release to svn
+      - name: Install SVN client
         if: ${{ inputs.deploy_svn }}
-        run: ./scripts/apache-release.sh ${{ inputs.release_version }} ${{ secrets.RELEASE_USERNAME }} ${{ secrets.RELEASE_PASSWORD }}
+        working-directory: ${{ github.workspace }}
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends subversion
+
+      - name: Validate source version and record SHA
+        run: |
+          python3 - <<'PY'
+          import ast, os, re, subprocess, tomllib
+          from pathlib import Path
+          expected = os.environ['RELEASE_VERSION']
+          if not re.fullmatch(r'[0-9]+\.[0-9]+\.[0-9]+', expected):
+              raise SystemExit('Use a numeric release version, without SNAPSHOT or RC suffix')
+          # Inspect metadata without executing setup.py or installing Python packages.
+          metadata = Path('pyproject.toml')
+          if metadata.is_file():
+              with metadata.open('rb') as f:
+                  versions = [tomllib.load(f).get('project', {}).get('version')]
+          else:
+              tree = ast.parse(Path('hugegraph-llm/setup.py').read_text())
+              versions = [keyword.value.value for node in ast.walk(tree)
+                          if isinstance(node, ast.Call)
+                          and ((isinstance(node.func, ast.Attribute) and node.func.attr == 'setup')
+                               or (isinstance(node.func, ast.Name) and node.func.id == 'setup'))
+                          for keyword in node.keywords
+                          if keyword.arg == 'version' and isinstance(keyword.value, ast.Constant)]
+          if versions != [expected]:
+              raise SystemExit(f'Source version {versions!r} does not match {expected!r}')
+          sha = subprocess.check_output(['git', 'rev-parse', 'HEAD'], text=True).strip()
+          with open(os.environ['GITHUB_ENV'], 'a') as f:
+              f.write(f'SOURCE_SHA={sha}\n')
+          receipt = Path(os.environ['RUNNER_TEMP']) / 'release-context.txt'
+          receipt.write_text(f'component=ai\nsource_sha={sha}\nversion={expected}\npackage=source-only\n')
+          print(receipt.read_text(), end='')
+          PY
+
+      - name: Check unsigned source archive
+        if: ${{ !inputs.deploy_svn }}
+        run: |
+          archive="$RUNNER_TEMP/apache-hugegraph-ai-$RELEASE_VERSION-src.tar.gz"
+          test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+          git archive --format=tar.gz --output="$archive" \
+            --prefix="apache-hugegraph-ai-$RELEASE_VERSION-src/" "$SOURCE_SHA"
+          tar -tzf "$archive" > "$RUNNER_TEMP/source-archive-files.txt"
+          test -s "$RUNNER_TEMP/source-archive-files.txt"
+          sha512sum "$archive" >> "$RUNNER_TEMP/release-context.txt"
+
+      - name: Save unsigned source prevalidation archive
+        if: ${{ !inputs.deploy_svn }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: unsigned-source-ai-${{ inputs.release_version }}
+          path: ${{ runner.temp }}/apache-hugegraph-ai-${{ inputs.release_version }}-src.tar.gz
+          if-no-files-found: error
+
+      - name: Import signing key for SVN upload
+        if: ${{ inputs.deploy_svn }}
+        id: import_gpg
+        uses: crazy-max/ghaction-import-gpg@v5
+        with:
+          gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
+
+      - name: Prepare signed SVN candidate
+        if: ${{ inputs.deploy_svn }}
+        env:
+          GPG_KEY_ID: ${{ steps.import_gpg.outputs.fingerprint }}
+        run: |
+          test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+          bash "$GITHUB_WORKSPACE/publisher/.github/workflows/scripts/release-svn.sh" \
+            prepare ai "$RELEASE_VERSION" "$SVN_PATH" \
+            "$GITHUB_WORKSPACE/source" "$RUNNER_TEMP/svn-candidate" \
+            2>&1 | tee -a "$RUNNER_TEMP/release-context.txt"
+
+      - name: Upload candidate to SVN dev
+        if: ${{ inputs.deploy_svn }}
+        env:
+          GPG_KEY_ID: ${{ steps.import_gpg.outputs.fingerprint }}
+          SVN_USERNAME: ${{ secrets.RELEASE_USERNAME }}
+          SVN_PASSWORD: ${{ secrets.RELEASE_PASSWORD }}
+        run: |
+          bash "$GITHUB_WORKSPACE/publisher/.github/workflows/scripts/release-svn.sh" \
+            upload "$RELEASE_VERSION" "$SVN_PATH" "$RUNNER_TEMP/svn-candidate" \
+            2>&1 | tee -a "$RUNNER_TEMP/release-context.txt"
+
+      - name: Save signed SVN candidate
+        if: ${{ always() && inputs.deploy_svn }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: signed-svn-candidate-${{ github.run_id }}
+          path: ${{ runner.temp }}/svn-candidate/
+          if-no-files-found: ignore
+
+      - name: Summarize release context
+        if: ${{ always() }}
+        working-directory: ${{ github.workspace }}
+        run: |
+          if test -f "$RUNNER_TEMP/release-context.txt"; then
+            cat "$RUNNER_TEMP/release-context.txt" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Save release context
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-context-ai
+          path: ${{ runner.temp }}/release-context.txt
+          if-no-files-found: ignore

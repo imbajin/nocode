@@ -1,0 +1,35 @@
+name: Release CI checks
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/release*.yml'
+      - '.github/workflows/scripts/release-svn.sh'
+      - 'tests/test_release_svn.py'
+  push:
+    branches: [master]
+    paths:
+      - '.github/workflows/release*.yml'
+      - '.github/workflows/scripts/release-svn.sh'
+      - 'tests/test_release_svn.py'
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install check tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y subversion shellcheck
+          go install github.com/rhysd/actionlint/cmd/actionlint@v1.7.12
+      - name: Check release workflows and script
+        run: |
+          "$(go env GOPATH)/bin/actionlint" .github/workflows/release*.yml
+          bash -n .github/workflows/scripts/release-svn.sh
+          shellcheck .github/workflows/scripts/release-svn.sh
+      - name: Test signatures and local SVN transactions
+        run: python3 -m unittest discover -s tests -v
