@@ -9,13 +9,13 @@ reviewed source ref and the Secrets already configured in this repository.
 | --- | --- |
 | Component publisher workflows | Build, sign and upload; check source version/SHA, upload target and selected SDK origins before publishing |
 | `check-publisher.yml` | Separate PR/push checks of publisher syntax, actual local Maven deployment and atomic local SVN migration; never invoked by publishing |
-| [Doc release validation](https://github.com/apache/hugegraph-doc/pull/512) | Validate candidate signatures, SHA512, contents/licensing, source rebuilds and source/binary runtime behavior |
+| [Doc release validation](https://github.com/apache/hugegraph-doc/blob/master/.github/workflows/validate-release.yml) | Validate candidate signatures, SHA512, contents/licensing, source rebuilds and source/binary runtime behavior |
 
 Publisher jobs skip product tests. They do not run package acceptance, license
 audits or Server/Client/Loader/Tools/Hubble integration checks. Those belong to
 Doc, which uses public keys and has no publishing credentials.
 
-Doc #512 currently provides full candidate validation for Server and Toolchain.
+The Doc validator currently provides full candidate validation for Server and Toolchain.
 Computer and AI use their own repository tests; a Doc success does not validate
 those components. Source prevalidation is also distinct from signed RC validation.
 
@@ -28,7 +28,10 @@ those components. Source prevalidation is also distinct from signed RC validatio
 
 ## Select the operation
 
-Both upload switches default to `false`.
+Maven staging upload defaults to `true` for Server, Toolchain and Computer.
+SVN upload and automatic close default to `false`. Explicitly disable Maven
+upload for an unsigned public build. AI has only the SVN switch, defaulting to
+`false`.
 
 | `deploy_maven` | `deploy_svn` | Operation |
 | --- | --- | --- |
@@ -38,8 +41,13 @@ Both upload switches default to `false`.
 | true | true | Maven staging deployment followed by independent SVN dev upload |
 
 AI only has the SVN switch. Maven deployments use the complete selected reactor,
-including its distribution and test modules. They do not promote, release, or
-close Nexus repositories. A successful Maven deployment followed by a failed SVN
+including its distribution and test modules. They never promote or release
+Nexus repositories. `close_staging` defaults to `false` and requires Maven upload.
+When enabled, the workflow creates a dedicated staging repository, deploys the
+complete reactor to that exact ID, checks that Nexus is ready after successful
+upload, then closes it and waits for closed state (polling every 15 seconds, with
+a single 5-minute deadline for the close operation). Upload failure skips close; start/deploy/close
+failure leaves the candidate for manual inspection, without automatic deletion. A successful Maven deployment followed by a failed SVN
 upload remains a Maven upload; check the run before retrying either operation.
 
 Deployment is explicitly per module (`deployAtEnd=false`). Apache parent 23's
@@ -70,6 +78,9 @@ temporary copy beside the original before passing credentials.
 
 For Toolchain, provide `staging_repository` when consuming a specific Apache
 staging repository. Use its concrete repository URL, not the broad staging group.
+Leave `staging_repository` empty for normal POM-based staging-group resolution.
+An explicit URL pins a particular Server SDK candidate when several share version
+1.8.0. This input selects a download source, not the Toolchain upload target.
 The workflow resolves SDK dependencies in an isolated Maven local repository and
 checks both JAR and POM repository origins. The mirror uses the existing Apache server ID
 so Maven upload runs can authenticate without copying credentials; public builds
@@ -90,7 +101,7 @@ repository, and does not select a deploy target or authorize a promote operation
 After deployment, identify the resulting staging repository in Apache Nexus and
 record its ID and concrete consumer URL with the workflow run. Do not assume that
 an open staging repository is anonymously readable. Supply an accessible selected
-repository to Doc validation; closing or promoting it is a separate operation.
+repository to Doc validation; closing it is optional through `close_staging`; formal release remains separate.
 
 ## Existing Secrets
 

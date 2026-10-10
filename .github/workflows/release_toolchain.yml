@@ -17,6 +17,11 @@ on:
         description: Upload to Apache Maven staging (never promote)
         required: true
         type: boolean
+        default: true
+      close_staging:
+        description: Close Maven staging after upload
+        required: true
+        type: boolean
         default: false
       deploy_svn:
         description: Upload signed candidate to SVN dev
@@ -24,7 +29,7 @@ on:
         type: boolean
         default: false
       staging_repository:
-        description: Specific Apache Maven staging repository containing SDK 1.8.0 (empty uses public staging group)
+        description: Server SDK staging URL (optional)
         required: false
         default: ''
 
@@ -47,15 +52,25 @@ jobs:
       RELEASE_VERSION: ${{ inputs.release_version }}
       COMPONENT: toolchain
     steps:
+      - name: Check close option
+        working-directory: ${{ github.workspace }}
+        env:
+          DEPLOY_MAVEN: ${{ inputs.deploy_maven }}
+          CLOSE_STAGING: ${{ inputs.close_staging }}
+        run: |
+          if [[ $CLOSE_STAGING == true && $DEPLOY_MAVEN != true ]]; then
+            echo 'Close staging requires Maven upload'; exit 1
+          fi
+
       - name: Checkout publisher
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           ref: ${{ github.sha }}
           path: publisher
           persist-credentials: false
 
       - name: Checkout release source
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           repository: ${{ inputs.repository_url }}
           ref: ${{ inputs.repository_branch }}
@@ -70,7 +85,7 @@ jobs:
           sudo apt-get install --yes --no-install-recommends subversion
 
       - name: Install JDK 17
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v6
         with:
           java-version: '17'
           distribution: temurin
@@ -99,7 +114,7 @@ jobs:
 
       # Hubble's frontend-maven-plugin installs the source-pinned Node and Yarn.
       - name: Cache Yarn downloads
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/.cache/yarn
           key: ${{ runner.os }}-yarn-${{ hashFiles('source/**/yarn.lock') }}
@@ -145,7 +160,7 @@ jobs:
       - name: Import signing key for uploads
         if: ${{ inputs.deploy_maven || inputs.deploy_svn }}
         id: import_gpg
-        uses: crazy-max/ghaction-import-gpg@v5
+        uses: crazy-max/ghaction-import-gpg@v7
         with:
           gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
 
@@ -156,16 +171,33 @@ jobs:
             -Dmaven.repo.local="$RUNNER_TEMP/maven-repository" \
             clean package -Pstage -DskipTests
 
+      - name: Open dedicated Maven staging repository
+        if: ${{ inputs.deploy_maven && inputs.close_staging }}
+        run: |
+          python3 "$GITHUB_WORKSPACE/publisher/.github/workflows/scripts/maven-staging.py" \
+            start "$RUNNER_TEMP/release-settings.xml"
+
       - name: Upload full reactor to Maven staging
         if: ${{ inputs.deploy_maven }}
         run: |
           test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+          deploy_options=()
+          if [[ -n ${MAVEN_DEPLOY_URL:-} ]]; then
+            deploy_options+=("-DaltDeploymentRepository=apache.releases.https::default::$MAVEN_DEPLOY_URL")
+          fi
           mvn -B -ntp -s "$RUNNER_TEMP/release-settings.xml" \
-            -Dmaven.repo.local="$RUNNER_TEMP/maven-repository" \
+            -Dmaven.repo.local="$RUNNER_TEMP/maven-repository" "${deploy_options[@]}" \
             clean deploy -Papache-release,stage -DskipTests -DdeployAtEnd=false
 
+      - name: Close this Maven staging repository
+        if: ${{ inputs.deploy_maven && inputs.close_staging }}
+        run: |
+          # This step runs only after the complete reactor deployment succeeds.
+          python3 "$GITHUB_WORKSPACE/publisher/.github/workflows/scripts/maven-staging.py" \
+            close "$RUNNER_TEMP/release-settings.xml"
+
       - name: Save built binary distribution
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: binary-hugegraph-toolchain-${{ inputs.release_version }}
           path: source/target/apache-hugegraph-toolchain-${{ inputs.release_version }}.tar.gz

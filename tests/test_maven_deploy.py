@@ -45,15 +45,21 @@ class MavenDeployTest(unittest.TestCase):
                   <modelVersion>4.0.0</modelVersion><parent><groupId>example.nocode</groupId>
                   <artifactId>publisher-fixture</artifactId><version>1.0.0</version></parent>
                   <artifactId>{name}</artifactId><packaging>pom</packaging>{extension}</project>''')
-            result = subprocess.run([maven, "-B", "-ntp", "-s", str(settings), "-gs", str(settings),
-                                     f"-Dmaven.repo.local={root / 'm2'}", "deploy", next(iter(options))],
-                                    cwd=root, env=os.environ, capture_output=True, text=True, timeout=300)
-            self.assertEqual(result.returncode, 0, result.stdout[-6000:] + result.stderr[-2000:])
-            # Exit status alone is insufficient: old deferred deploy can silently publish nothing.
-            for artifact in ("publisher-fixture", "ordinary", "extension"):
-                with self.subTest(artifact=artifact):
-                    pom = repository / "example/nocode" / artifact / "1.0.0" / f"{artifact}-1.0.0.pom"
-                    self.assertTrue(pom.is_file(), f"Missing real deployed POM: {pom}\n{result.stdout[-6000:]}")
+            # Also exercise the exact-target override used for optional close.
+            dedicated = root / "dedicated"
+            for destination, override in (
+                (repository, []),
+                (dedicated, [f"-DaltDeploymentRepository=file-test::default::{dedicated.as_uri()}"]),
+            ):
+                result = subprocess.run([maven, "-B", "-ntp", "-s", str(settings), "-gs", str(settings),
+                                         f"-Dmaven.repo.local={root / 'm2'}", "deploy", next(iter(options)), *override],
+                                        cwd=root, env=os.environ, capture_output=True, text=True, timeout=300)
+                self.assertEqual(result.returncode, 0, result.stdout[-6000:] + result.stderr[-2000:])
+                # Exit status alone is insufficient: old deferred deploy can silently publish nothing.
+                for artifact in ("publisher-fixture", "ordinary", "extension"):
+                    with self.subTest(artifact=artifact):
+                        pom = destination / "example/nocode" / artifact / "1.0.0" / f"{artifact}-1.0.0.pom"
+                        self.assertTrue(pom.is_file(), f"Missing real deployed POM: {pom}\n{result.stdout[-6000:]}")
 
 
 if __name__ == "__main__":

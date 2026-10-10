@@ -9,6 +9,7 @@ on:
       - '.github/workflows/scripts/*'
       - 'tests/test_release_svn.py'
       - 'tests/test_maven_deploy.py'
+      - 'tests/test_maven_staging.py'
   push:
     branches: [master]
     paths:
@@ -17,6 +18,7 @@ on:
       - '.github/workflows/scripts/*'
       - 'tests/test_release_svn.py'
       - 'tests/test_maven_deploy.py'
+      - 'tests/test_maven_staging.py'
 
 permissions:
   contents: read
@@ -25,7 +27,7 @@ jobs:
   checks:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Install check tools
         run: |
           sudo apt-get update

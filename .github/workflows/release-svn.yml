@@ -43,7 +43,7 @@ jobs:
         working-directory: publisher
     steps:
       - name: Checkout publisher
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           ref: ${{ github.sha }}
           path: publisher
@@ -79,7 +79,7 @@ jobs:
 
       - name: Save migration receipt
         if: ${{ always() }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: svn-migration-context
           path: ${{ runner.temp }}/release-context.txt
