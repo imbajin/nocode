@@ -1,176 +1,34 @@
-name: Inspect / close approved temporary HugeGraph staging
+name: Inspect HugeGraph Nexus metadata (read only)
 on:
   workflow_dispatch:
-    inputs:
-      close_repository:
-        description: Close an explicitly approved temporary candidate only
-        required: false
-        type: choice
-        default: 'none'
-        options: ['none', 'orgapachehugegraph-1160', 'orgapachehugegraph-1161']
-      close_server:
-        description: Close only orgapachehugegraph-1160 (requires explicit user approval)
-        required: true
-        type: boolean
-        default: false
-      expected_core_sha512:
-        description: SHA512 of core JAR from the actual 1.8.0 Server staging build
-        required: false
-        default: ''
 permissions:
   contents: read
 jobs:
   inspect:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 5
     steps:
-      - name: Read Nexus metadata and compare staged SDK bytes
+      - uses: actions/checkout@v7
+      - name: Inspect profiles and current candidates without writes
         env:
-          MAVEN_SETTINGS: ${{ secrets.M2_SETTINGS }}
-          EXPECTED_HASH: ${{ inputs.expected_core_sha512 }}
-          CLOSE_SERVER: ${{ inputs.close_server }}
-          CLOSE_REPOSITORY: ${{ inputs.close_repository }}
+          M2_SETTINGS: ${{ secrets.M2_SETTINGS }}
         run: |
-          python3 - <<'PY'
-          import base64, hashlib, json, os, re, time, urllib.error, urllib.request
-          import xml.etree.ElementTree as ET
+          python3 - <<'PYCODE'
+          import importlib.util, os
           from pathlib import Path
-          expected = os.environ['EXPECTED_HASH']
-          if expected and not re.fullmatch(r'[0-9a-f]{128}', expected):
-              raise SystemExit('Invalid SHA512')
-          root = ET.fromstring(os.environ['MAVEN_SETTINGS'])
-          server = next((node for node in root.iter() if node.tag.split('}')[-1] == 'server'
-                         and any(c.tag.split('}')[-1] == 'id' and c.text == 'apache.releases.https'
-                                 for c in node)), None)
-          if server is None:
-              raise SystemExit('Missing Apache release server')
-          fields = {c.tag.split('}')[-1]: c.text or '' for c in server}
-          token = base64.b64encode((fields.get('username', '') + ':' + fields.get('password', '')).encode()).decode()
-          def get(url, authenticated=True, json_content=False):
-              headers = {'Accept': 'application/json' if json_content or url.endswith('profile_repositories') else 'application/octet-stream'}
-              if authenticated:
-                  headers['Authorization'] = 'Basic ' + token
-              with urllib.request.urlopen(urllib.request.Request(url, headers=headers), timeout=60) as response:
-                  return response.read()
+          settings = Path(os.environ['RUNNER_TEMP']) / 'settings.xml'
+          settings.touch(mode=0o600)
           try:
-              data = json.loads(get('https://repository.apache.org/service/local/staging/profile_repositories'))['data']
-          except urllib.error.HTTPError as error:
-              raise SystemExit(f'Nexus metadata HTTP status: {error.code}') from None
-          identifier = os.environ['CLOSE_REPOSITORY'] if os.environ['CLOSE_REPOSITORY'] != 'none' else ('orgapachehugegraph-1160' if os.environ['CLOSE_SERVER'] == 'true' else '')
-          if identifier:
-              required_modules = {'orgapachehugegraph-1160': {'hugegraph-core', 'hugegraph-common', 'hg-pd-client', 'hg-pd-common', 'hg-pd-grpc'},
-                                  'orgapachehugegraph-1161': {'hugegraph-client', 'hugegraph-loader', 'hugegraph-toolchain-dist'}}
-              if identifier not in required_modules:
-                  raise SystemExit('Repository was not approved')
-              repository = next((row for row in data if row.get('repositoryId') == identifier), None)
-              if repository is None or (identifier == 'orgapachehugegraph-1160' and not expected):
-                  raise SystemExit('Approved Server repository and expected build hash are required')
-              if repository.get('type') == 'open':
-                  profile = repository.get('profileId', '')
-                  if not re.fullmatch(r'[0-9a-f]+', profile):
-                      raise SystemExit('Invalid staging profile id')
-                  browse = 'https://repository.apache.org/service/local/repositories/' + identifier + '/content/org/apache/hugegraph/'
-                  entries = json.loads(get(browse, json_content=True))['data']
-                  modules = {row.get('relativePath', '').rstrip('/').split('/')[-1] for row in entries}
-                  if not required_modules[identifier] <= modules:
-                      raise SystemExit('Approved repository lacks required modules')
-                  print(f'Closing approved temporary repository {identifier}; {len(modules)} module directories')
-                  request = ET.Element('promoteRequest')
-                  payload = ET.SubElement(request, 'data')
-                  ET.SubElement(payload, 'stagedRepositoryId').text = identifier
-                  ET.SubElement(payload, 'description').text = 'Close temporary 1.8.0 candidate for downstream dependency validation; explicitly approved'
-                  # Nexus calls this XML promoteRequest; finish performs close only.
-                  url = 'https://repository.apache.org/service/local/staging/profiles/' + profile + '/finish'
-                  headers = {'Authorization': 'Basic ' + token, 'Content-Type': 'application/xml', 'Accept': 'application/json'}
-                  try:
-                      with urllib.request.urlopen(urllib.request.Request(url, data=ET.tostring(request), headers=headers, method='POST'), timeout=60) as response:
-                          print('Close request HTTP status:', response.status)
-                  except urllib.error.HTTPError as error:
-                      raise SystemExit(f'Close request HTTP status: {error.code}') from None
-              elif repository.get('type') != 'closed':
-                  raise SystemExit('Approved repository must be open or already closed')
-              for _ in range(36):
-                  data = json.loads(get('https://repository.apache.org/service/local/staging/profile_repositories'))['data']
-                  repository = next((row for row in data if row.get('repositoryId') == identifier), {})
-                  if repository.get('type') == 'closed' and not repository.get('transitioning'):
-                      print('Confirmed closed:', identifier)
-                      break
-                  time.sleep(5)
-              else:
-                  activity = json.loads(get('https://repository.apache.org/service/local/staging/repository/' + identifier + '/activity', json_content=True))
-                  print('Close activity:', json.dumps(activity))
-                  raise SystemExit('Temporary repository did not reach closed state')
-          if os.environ['CLOSE_REPOSITORY'] == 'orgapachehugegraph-1161':
-              import subprocess
-              base = 'https://repository.apache.org/content/repositories/orgapachehugegraph-1161/org/apache/hugegraph/'
-              for artifact in ('hugegraph-client', 'hugegraph-loader'):
-                  url = base + artifact + '/1.8.0/' + artifact + '-1.8.0.jar'
-                  jar = get(url, False)
-                  digest = get(url + '.sha1', False).decode().split()[0]
-                  if not jar.startswith(b'PK') or hashlib.sha1(jar).hexdigest() != digest:
-                      raise SystemExit('Invalid candidate JAR or checksum: ' + artifact)
-                  get(url.replace('.jar', '.pom'), False)
-                  print(artifact + ': anonymous JAR/POM access and SHA1 check passed; SHA512=' + hashlib.sha512(jar).hexdigest())
-                  if artifact == 'hugegraph-loader':
-                      path = Path(os.environ['RUNNER_TEMP']) / 'hugegraph-loader-1.8.0.jar'
-                      path.write_bytes(jar)
-                      api = subprocess.check_output(['javap', '-classpath', str(path), 'org.apache.hugegraph.loader.executor.LoadContext'], text=True)
-                      if 'forOffline(' not in api:
-                          raise SystemExit('Staged Loader lacks the required offline API')
-                      print('Staged Loader forOffline API confirmed')
-          results = []
-          for repository in data:
-              identifier = repository.get('repositoryId', '')
-              if not re.fullmatch(r'orgapachehugegraph-[0-9]+', identifier):
-                  continue
-              url = 'https://repository.apache.org/content/repositories/' + identifier
-              row = {'id': identifier, 'type': repository.get('type'), 'url': url,
-                     'repository_uri': repository.get('repositoryURI')}
-              browse = 'https://repository.apache.org/service/local/repositories/' + identifier + '/content/org/apache/hugegraph/'
-              try:
-                  entries = json.loads(get(browse, json_content=True))['data']
-              except urllib.error.HTTPError as error:
-                  row['browse_http_status'] = error.code
-              else:
-                  row['artifact_directories'] = [entry.get('relativePath') for entry in entries]
-              endpoints = [url, 'https://repository.apache.org/service/local/repositories/' + identifier + '/content']
-              for candidate_url in endpoints:
-                  artifact = candidate_url + '/org/apache/hugegraph/hugegraph-core/1.8.0/hugegraph-core-1.8.0.jar'
-                  try:
-                      payload = get(artifact)
-                  except urllib.error.HTTPError as error:
-                      row[candidate_url] = {'artifact_http_status': error.code}
-                  else:
-                      if not payload.startswith(b'PK'):
-                          row[candidate_url] = {'invalid_jar': True}
-                          continue
-                      digest = hashlib.sha512(payload).hexdigest()
-                      row['sdk_url'] = candidate_url
-                      row['core_sha512'] = digest
-                      row['matches_build'] = bool(expected) and digest == expected
-                      try:
-                          anonymous = hashlib.sha512(get(artifact, False)).hexdigest()
-                      except urllib.error.HTTPError as error:
-                          row['anonymous_http_status'] = error.code
-                      else:
-                          row['anonymous_matches_build'] = anonymous == digest
-                      break
-              results.append(row)
-          output = json.dumps(results, indent=2)
-          print(output)
-          (Path(os.environ['RUNNER_TEMP']) / 'staging-receipt.json').write_text(output + '\n')
-          with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as summary:
-              summary.write('```json\n' + output + '\n```\n')
-          matches = [row for row in results if row.get('matches_build')]
-          if expected:
-              if len(matches) != 1:
-                  raise SystemExit(f'Expected one matching staging repository; found {len(matches)}')
-              print('staging_repository=' + matches[0]['url'])
-          PY
-      - name: Save sanitized staging receipt
-        if: ${{ always() }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: staging-receipt
-          path: ${{ runner.temp }}/staging-receipt.json
-          if-no-files-found: ignore
+              settings.write_text(os.environ['M2_SETTINGS'])
+              spec = importlib.util.spec_from_file_location('staging', '.github/workflows/scripts/maven-staging.py')
+              module = importlib.util.module_from_spec(spec)
+              spec.loader.exec_module(module)
+              nexus = module.Nexus(settings)
+              profiles = nexus.request('/staging/profiles')
+              print('HugeGraph profiles:', [{key: row.get(key) for key in ('id', 'name')} for row in profiles if 'hugegraph' in row.get('name', '').lower()])
+              for identifier in ('orgapachehugegraph-1160', 'orgapachehugegraph-1161'):
+                  metadata = nexus.request('/staging/repository/' + identifier)
+                  print({key: metadata.get(key) for key in ('repositoryId', 'profileId', 'profileName', 'type', 'transitioning')})
+          finally:
+              settings.unlink(missing_ok=True)
+          PYCODE
