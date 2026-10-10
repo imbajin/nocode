@@ -4,25 +4,26 @@ on:
   workflow_dispatch:
     inputs:
       release_version:
+        description: Release version
         required: true
         default: '1.8.0'
       svn_path:
-        description: Voted candidate path under dev/hugegraph (empty uses version)
+        description: Voted candidate path (optional)
         required: false
         default: ''
       update_keys:
         required: true
         type: boolean
-        description: Copy dev KEYS to release and retain dev KEYS
+        description: Update release KEYS
         default: false
       delete_pkg:
         required: false
         type: boolean
-        description: Delete a previous version in release after successful migration
+        description: Delete an old release
         default: false
       pre_version:
         required: false
-        description: Previous release version to delete (must differ from this release)
+        description: Old version to delete
         default: ''
 
 permissions:

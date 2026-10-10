@@ -4,27 +4,29 @@ on:
   workflow_dispatch:
     inputs:
       repository_url:
+        description: Source repository
         required: true
         default: 'apache/hugegraph'
       repository_branch:
-        description: Source branch, tag, or full commit SHA
+        description: Source branch, tag or commit
         required: true
         default: 'release-1.8.0'
       release_version:
+        description: Release version
         required: true
         default: '1.8.0'
       deploy_maven:
-        description: Upload to Apache Maven staging (never promote)
+        description: Upload to Maven staging
         required: true
         type: boolean
         default: true
-      close_staging:
-        description: Close Maven staging after upload
+      make_staging_public:
+        description: Enable public downloads
         required: true
         type: boolean
         default: false
       deploy_svn:
-        description: Upload signed candidate to SVN dev
+        description: Upload candidates to SVN
         required: true
         type: boolean
         default: false
@@ -52,7 +54,7 @@ jobs:
         working-directory: ${{ github.workspace }}
         env:
           DEPLOY_MAVEN: ${{ inputs.deploy_maven }}
-          CLOSE_STAGING: ${{ inputs.close_staging }}
+          CLOSE_STAGING: ${{ inputs.make_staging_public }}
         run: |
           if [[ $CLOSE_STAGING == true && $DEPLOY_MAVEN != true ]]; then
             echo 'Close staging requires Maven upload'; exit 1
@@ -132,7 +134,7 @@ jobs:
             clean package -Pstage -DskipTests
 
       - name: Open dedicated Maven staging repository
-        if: ${{ inputs.deploy_maven && inputs.close_staging }}
+        if: ${{ inputs.deploy_maven && inputs.make_staging_public }}
         run: |
           python3 "$GITHUB_WORKSPACE/publisher/.github/workflows/scripts/maven-staging.py" \
             start "$RUNNER_TEMP/release-settings.xml"
@@ -150,7 +152,7 @@ jobs:
             clean deploy -Papache-release,stage -DskipTests -DdeployAtEnd=false
 
       - name: Close this Maven staging repository
-        if: ${{ inputs.deploy_maven && inputs.close_staging }}
+        if: ${{ inputs.deploy_maven && inputs.make_staging_public }}
         run: |
           # This step runs only after the complete reactor deployment succeeds.
           python3 "$GITHUB_WORKSPACE/publisher/.github/workflows/scripts/maven-staging.py" \

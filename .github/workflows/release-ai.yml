@@ -8,14 +8,15 @@ on:
         required: true
         default: 'apache/hugegraph-ai'
       repository_branch:
-        description: Source branch, tag, or full commit SHA
+        description: Source branch, tag or commit
         required: true
         default: 'release-1.8.0'
       release_version:
+        description: Release version
         required: true
         default: '1.8.0'
       deploy_svn:
-        description: Upload signed source candidate to SVN dev
+        description: Upload candidates to SVN
         required: true
         type: boolean
         default: false

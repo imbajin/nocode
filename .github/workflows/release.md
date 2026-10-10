@@ -42,7 +42,7 @@ upload for an unsigned public build. AI has only the SVN switch, defaulting to
 
 AI only has the SVN switch. Maven deployments use the complete selected reactor,
 including its distribution and test modules. They never promote or release
-Nexus repositories. `close_staging` defaults to `false` and requires Maven upload.
+Nexus repositories. `make_staging_public` defaults to `false` and requires Maven upload.
 When enabled, the workflow creates a dedicated staging repository, deploys the
 complete reactor to that exact ID, checks that Nexus is ready after successful
 upload, then closes it and waits for closed state (polling every 15 seconds, with
@@ -101,7 +101,7 @@ repository, and does not select a deploy target or authorize a promote operation
 After deployment, identify the resulting staging repository in Apache Nexus and
 record its ID and concrete consumer URL with the workflow run. Do not assume that
 an open staging repository is anonymously readable. Supply an accessible selected
-repository to Doc validation; closing it is optional through `close_staging`; formal release remains separate.
+repository to Doc validation; closing it is optional through `make_staging_public`; formal release remains separate.
 
 ## Existing Secrets
 
