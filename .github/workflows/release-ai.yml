@@ -10,10 +10,10 @@ on:
       repository_branch:
         description: Source branch, tag, or full commit SHA
         required: true
-        default: 'release-1.5.0'
+        default: 'release-1.8.0'
       release_version:
         required: true
-        default: '1.5.0'
+        default: '1.8.0'
       deploy_svn:
         description: Upload signed source candidate to SVN dev
         required: true
@@ -38,6 +38,13 @@ jobs:
     env:
       RELEASE_VERSION: ${{ inputs.release_version }}
     steps:
+      - name: Checkout publisher
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          path: publisher
+          persist-credentials: false
+
       - name: Checkout release source
         uses: actions/checkout@v4
         with:
@@ -55,34 +62,7 @@ jobs:
 
       - name: Validate source version and record SHA
         run: |
-          python3 - <<'PY'
-          import ast, os, re, subprocess, tomllib
-          from pathlib import Path
-          expected = os.environ['RELEASE_VERSION']
-          if not re.fullmatch(r'[0-9]+\.[0-9]+\.[0-9]+', expected):
-              raise SystemExit('Use a numeric release version, without SNAPSHOT or RC suffix')
-          # Inspect metadata without executing setup.py or installing Python packages.
-          metadata = Path('pyproject.toml')
-          if metadata.is_file():
-              with metadata.open('rb') as f:
-                  versions = [tomllib.load(f).get('project', {}).get('version')]
-          else:
-              tree = ast.parse(Path('hugegraph-llm/setup.py').read_text())
-              versions = [keyword.value.value for node in ast.walk(tree)
-                          if isinstance(node, ast.Call)
-                          and ((isinstance(node.func, ast.Attribute) and node.func.attr == 'setup')
-                               or (isinstance(node.func, ast.Name) and node.func.id == 'setup'))
-                          for keyword in node.keywords
-                          if keyword.arg == 'version' and isinstance(keyword.value, ast.Constant)]
-          if versions != [expected]:
-              raise SystemExit(f'Source version {versions!r} does not match {expected!r}')
-          sha = subprocess.check_output(['git', 'rev-parse', 'HEAD'], text=True).strip()
-          with open(os.environ['GITHUB_ENV'], 'a') as f:
-              f.write(f'SOURCE_SHA={sha}\n')
-          receipt = Path(os.environ['RUNNER_TEMP']) / 'release-context.txt'
-          receipt.write_text(f'component=ai\nsource_sha={sha}\nversion={expected}\npackage=source-only\n')
-          print(receipt.read_text(), end='')
-          PY
+          python3 "$GITHUB_WORKSPACE/publisher/.github/workflows/scripts/check-ai-release.py"
 
       - name: Check unsigned source archive
         if: ${{ !inputs.deploy_svn }}

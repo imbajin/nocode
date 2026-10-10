@@ -23,8 +23,8 @@ those components. Source prevalidation is also distinct from signed RC validatio
 | --- | --- | --- |
 | Server | Root Maven reactor; Java 17; version 1.8.0 | Source and binary |
 | Toolchain | Root Maven reactor; Java 17; SDK 1.8.0 | Source and binary |
-| Computer | `computer/` Maven reactor; existing 1.5.0 ref; Java 11 by default | Source |
-| AI | Existing 1.5.0 ref; no PyPI publication | Source |
+| Computer | `computer/` Maven reactor; Version 1.8.0; Java 17 by default | Source |
+| AI | Version 1.8.0; no PyPI publication | Source |
 
 ## Select the operation
 
@@ -50,11 +50,14 @@ rather than accepting Maven's exit status alone. A later reactor failure can
 leave a partial staging upload; inspect that repository before retrying.
 
 Use `repository_url`, `repository_branch` (branch, tag, or full SHA), and
-`release_version` to choose the source. Server and Toolchain default to `master`;
-Computer and AI preserve their existing release refs. For Computer 1.8.0 source,
-select `java_version=17`; the existing 1.5.0 default keeps Java 11. A version mismatch fails
+`release_version` to choose the source. All four components default to
+`release-1.8.0` and version `1.8.0`; Computer defaults to Java 17 (Java 11 remains
+selectable for older releases). Create the reviewed release branch in each source
+repository before using these defaults. Rehearsals may explicitly select a commit
+SHA or `master`. A version mismatch fails
 before upload. Each run records the resolved full source SHA and uses it for the
-source archive as well as the build. No remote release branch is required.
+source archive as well as the build. Selecting an explicit SHA does not require
+a remote release branch.
 
 SVN uploads call the selected source repository's existing `apache-release.sh`.
 The workflow binds its local `release-VERSION` branch to the checked-out SHA;

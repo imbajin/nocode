@@ -9,7 +9,7 @@ on:
       repository_branch:
         description: Source branch, tag, or full commit SHA
         required: true
-        default: 'master'
+        default: 'release-1.8.0'
       release_version:
         required: true
         default: '1.8.0'

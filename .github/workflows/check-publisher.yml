@@ -36,6 +36,6 @@ jobs:
           "$(go env GOPATH)/bin/actionlint" .github/workflows/release*.yml .github/workflows/check-publisher.yml
           bash -n .github/workflows/scripts/release-svn.sh
           shellcheck .github/workflows/scripts/release-svn.sh
-          python3 -m py_compile .github/workflows/scripts/check-maven-release.py
+          python3 -m py_compile .github/workflows/scripts/*.py
       - name: Test local Maven deployment and SVN migration
         run: python3 -m unittest discover -s tests -v

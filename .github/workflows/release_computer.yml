@@ -9,15 +9,15 @@ on:
       repository_branch:
         description: Source branch, tag, or full commit SHA
         required: true
-        default: 'release-1.5.0'
+        default: 'release-1.8.0'
       release_version:
         required: true
-        default: '1.5.0'
+        default: '1.8.0'
       java_version:
         description: JDK for the selected source (1.8.0 requires 17)
         required: true
         type: choice
-        default: '11'
+        default: '17'
         options: ['11', '17']
       deploy_maven:
         description: Upload to Apache Maven staging (never promote)

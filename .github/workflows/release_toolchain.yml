@@ -9,7 +9,7 @@ on:
       repository_branch:
         description: Source branch, tag, or full commit SHA
         required: true
-        default: 'master'
+        default: 'release-1.8.0'
       release_version:
         required: true
         default: '1.8.0'
@@ -110,40 +110,13 @@ jobs:
         env:
           STAGING_REPOSITORY: ${{ inputs.staging_repository }}
         run: |
-          python3 - <<'PY'
-          import os, re, xml.etree.ElementTree as ET
-          from pathlib import Path
-          url = os.environ['STAGING_REPOSITORY'].rstrip('/')
-          if not re.fullmatch(r'https://repository\.apache\.org/content/repositories/orgapachehugegraph-[0-9]+', url):
-              raise SystemExit('Specify an individual Apache HugeGraph staging repository')
-          path = Path(os.environ['RUNNER_TEMP']) / 'release-settings.xml'
-          tree = ET.parse(path)
-          root = tree.getroot()
-          namespace = root.tag.split('}')[0] + '}' if root.tag.startswith('{') else ''
-          if namespace:
-              ET.register_namespace('', namespace[1:-1])
-          mirrors = root.find(namespace + 'mirrors')
-          if mirrors is None:
-              mirrors = ET.SubElement(root, namespace + 'mirrors')
-          for mirror in list(mirrors):
-              if mirror.findtext(namespace + 'mirrorOf') == 'staged-releases':
-                  mirrors.remove(mirror)
-          # Reuse the Apache server id: upload runs can authenticate without
-          # duplicating credentials; public builds still have no server entries.
-          mirror = ET.SubElement(mirrors, namespace + 'mirror')
-          for key, value in [('id', 'apache.releases.https'), ('mirrorOf', 'staged-releases'), ('url', url + '/')]:
-              ET.SubElement(mirror, namespace + key).text = value
-          tree.write(path, encoding='utf-8', xml_declaration=True)
-          print(f'SDK staging repository: {url}')
-          PY
+          python3 "$GITHUB_WORKSPACE/publisher/.github/workflows/scripts/configure-sdk-staging.py"
 
       - name: Resolve SDK from the selected staging repository
         if: ${{ inputs.staging_repository != '' }}
         env:
           STAGING_REPOSITORY: ${{ inputs.staging_repository }}
         run: |
-          # Recent Resolver versions qualify the origin id with SHA1(repository URL).
-          repository_key=$(python3 -c 'import hashlib, os; print("apache.releases.https-" + hashlib.sha1((os.environ["STAGING_REPOSITORY"].rstrip("/") + "/").encode()).hexdigest())')
           # The isolated local repository prevents installed SDKs masking missing staged artifacts.
           for artifact in hugegraph-common hugegraph-core hg-pd-client hg-pd-common hg-pd-grpc; do
             # The POM controls transitive dependencies; verify it separately from the JAR.
@@ -153,7 +126,7 @@ jobs:
                 org.apache.maven.plugins:maven-dependency-plugin:3.8.1:get \
                 "-Dartifact=org.apache.hugegraph:$artifact:1.8.0:$type" -Dtransitive=false
               grep -Fx -e "$artifact-1.8.0.$type>apache.releases.https=" \
-                -e "$artifact-1.8.0.$type>$repository_key=" \
+                -e "$artifact-1.8.0.$type>$SDK_REPOSITORY_KEY=" \
                 "$RUNNER_TEMP/maven-repository/org/apache/hugegraph/$artifact/1.8.0/_remote.repositories" > /dev/null || {
                 echo "SDK $artifact $type did not come from the selected staging repository"; exit 1;
               }
