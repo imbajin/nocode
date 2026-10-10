@@ -6,8 +6,8 @@ on:
         description: Close an explicitly approved temporary candidate only
         required: false
         type: choice
-        default: ''
-        options: ['', 'orgapachehugegraph-1160', 'orgapachehugegraph-1161']
+        default: 'none'
+        options: ['none', 'orgapachehugegraph-1160', 'orgapachehugegraph-1161']
       close_server:
         description: Close only orgapachehugegraph-1160 (requires explicit user approval)
         required: true
@@ -56,7 +56,7 @@ jobs:
               data = json.loads(get('https://repository.apache.org/service/local/staging/profile_repositories'))['data']
           except urllib.error.HTTPError as error:
               raise SystemExit(f'Nexus metadata HTTP status: {error.code}') from None
-          identifier = os.environ['CLOSE_REPOSITORY'] or ('orgapachehugegraph-1160' if os.environ['CLOSE_SERVER'] == 'true' else '')
+          identifier = os.environ['CLOSE_REPOSITORY'] if os.environ['CLOSE_REPOSITORY'] != 'none' else ('orgapachehugegraph-1160' if os.environ['CLOSE_SERVER'] == 'true' else '')
           if identifier:
               required_modules = {'orgapachehugegraph-1160': {'hugegraph-core', 'hugegraph-common', 'hg-pd-client', 'hg-pd-common', 'hg-pd-grpc'},
                                   'orgapachehugegraph-1161': {'hugegraph-client', 'hugegraph-loader', 'hugegraph-toolchain-dist'}}
