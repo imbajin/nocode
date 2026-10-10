@@ -62,7 +62,8 @@ class Nexus:
         except (urllib.error.URLError, TimeoutError):
             raise SystemExit("Nexus request failed (network error)") from None
         try:
-            return json.loads(payload).get("data") if payload else None
+            decoded = json.loads(payload) if payload else {}
+            return decoded.get("data", decoded)
         except (ValueError, AttributeError):
             raise SystemExit("Nexus returned an invalid response") from None
 
