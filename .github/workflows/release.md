@@ -3,6 +3,22 @@
 These workflows are each release manager's personal publishing entrypoint. Use a
 reviewed source ref and the Secrets already configured in this repository.
 
+## Responsibilities
+
+| Entry point | Responsibility |
+| --- | --- |
+| Component publisher workflows | Build, sign and upload; check source version/SHA, upload target and selected SDK origins before publishing |
+| `check-publisher.yml` | Separate PR/push checks of publisher syntax, actual local Maven deployment and atomic local SVN migration; never invoked by publishing |
+| [Doc release validation](https://github.com/apache/hugegraph-doc/pull/512) | Validate candidate signatures, SHA512, contents/licensing, source rebuilds and source/binary runtime behavior |
+
+Publisher jobs skip product tests. They do not run package acceptance, license
+audits or Server/Client/Loader/Tools/Hubble integration checks. Those belong to
+Doc, which uses public keys and has no publishing credentials.
+
+Doc #512 currently provides full candidate validation for Server and Toolchain.
+Computer and AI use their own repository tests; a Doc success does not validate
+those components. Source prevalidation is also distinct from signed RC validation.
+
 | Workflow | Build/deploy entrypoint | Candidate packages |
 | --- | --- | --- |
 | Server | Root Maven reactor; Java 17; version 1.8.0 | Source and binary |
@@ -88,13 +104,16 @@ encrypted-key/passphrase configuration is not inferred from Secret names.
 
 ## Verification and formal migration
 
-The `Release CI checks` workflow runs actionlint, shellcheck, a local Maven
+The independent `Publisher CI checks` workflow runs actionlint, shellcheck, a local Maven
 deployment regression, and real local SVN migration tests. It never writes to Apache
-SVN or Maven. Full publisher build and staging results are separate evidence.
+SVN or Maven and is not a dependency of the publishing workflows. These tests check
+publisher behavior, not the product or candidate packages.
 
-After upload, Doc validation verifies candidate signatures, SHA512, package
-contents, the selected staging SDK, and core startup/runtime behavior. It neither
-signs nor uploads candidates.
+For Server/Toolchain, hand the source SHAs, version, candidate SVN path, signer
+fingerprint and readable staging URL to Doc validation. It independently checks
+signatures, SHA512, package contents, rebuilt SDK provenance and runtime behavior;
+it neither signs nor uploads candidates. Source prevalidation does not certify
+RC signatures, candidate downloads or remote staging provenance.
 
 `Release SVN Packages` is the post-vote migration entrypoint. Select the exact
 candidate `svn_path`; it moves that directory to `release/hugegraph/VERSION`.

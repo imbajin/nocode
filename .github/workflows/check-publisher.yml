@@ -1,8 +1,10 @@
-name: Release CI checks
+name: Publisher CI checks
 
+# Publisher implementation regressions only; candidate validation belongs to Doc.
 on:
   pull_request:
     paths:
+      - '.github/workflows/check-publisher.yml'
       - '.github/workflows/release*.yml'
       - '.github/workflows/scripts/*'
       - 'tests/test_release_svn.py'
@@ -10,6 +12,7 @@ on:
   push:
     branches: [master]
     paths:
+      - '.github/workflows/check-publisher.yml'
       - '.github/workflows/release*.yml'
       - '.github/workflows/scripts/*'
       - 'tests/test_release_svn.py'
@@ -30,7 +33,7 @@ jobs:
           go install github.com/rhysd/actionlint/cmd/actionlint@v1.7.12
       - name: Check release workflows and script
         run: |
-          "$(go env GOPATH)/bin/actionlint" .github/workflows/release*.yml
+          "$(go env GOPATH)/bin/actionlint" .github/workflows/release*.yml .github/workflows/check-publisher.yml
           bash -n .github/workflows/scripts/release-svn.sh
           shellcheck .github/workflows/scripts/release-svn.sh
           python3 -m py_compile .github/workflows/scripts/check-maven-release.py
