@@ -7,63 +7,150 @@ on:
         required: true
         default: 'apache/hugegraph-computer'
       repository_branch:
+        description: Source branch, tag, or full commit SHA
         required: true
-        default: 'release-1.5.0'
+        default: 'release-1.8.0'
       release_version:
         required: true
-        default: '1.5.0'
+        default: '1.8.0'
+      java_version:
+        description: JDK for the selected source (1.8.0 requires 17)
+        required: true
+        type: choice
+        default: '17'
+        options: ['11', '17']
       deploy_maven:
+        description: Upload to Apache Maven staging (never promote)
         required: true
         type: boolean
-        description: publish to maven nexus
         default: false
       deploy_svn:
+        description: Upload signed candidate to SVN dev
         required: true
         type: boolean
-        description: publish to apache svn
         default: false
-        
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-computer-${{ inputs.release_version }}
+  cancel-in-progress: false
+
 jobs:
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 120
+    defaults:
+      run:
+        shell: bash
+        working-directory: source/computer
+    env:
+      RELEASE_VERSION: ${{ inputs.release_version }}
+      COMPONENT: computer
     steps:
-      - name: Install JDK 11
-        uses: actions/setup-java@v3
+      - name: Checkout publisher
+        uses: actions/checkout@v4
         with:
-          java-version: '11'
-          distribution: 'adopt'
-       
-      - name: Import GPG key
-        id: import_gpg
-        uses: crazy-max/ghaction-import-gpg@v5
-        with:
-          gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
-          
-      - name: Checkout
+          ref: ${{ github.sha }}
+          path: publisher
+          persist-credentials: false
+
+      - name: Checkout release source
         uses: actions/checkout@v4
         with:
           repository: ${{ inputs.repository_url }}
           ref: ${{ inputs.repository_branch }}
-          fetch-depth: 2
+          path: source
+          persist-credentials: false
 
-      - name: Cache Maven packages
-        uses: actions/cache@v3
-        with:
-          path: ~/.m2/repository
-          key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
-          restore-keys: ${{ runner.os }}-m2
-          
-      - name: Replace maven settings
-        run: mkdir -p ~/.m2 && echo '${{ secrets.M2_SETTINGS }}' > ~/.m2/settings.xml
-        
-      - name: Package Only
-        if: ${{ !inputs.deploy_maven }}
-        run: (echo "just building" && cd computer && mvn clean package -Papache-release,stage -DskipTests -ntp -e) || exit
-
-      - name: Package & Release to maven
-        if: ${{ inputs.deploy_maven }}
-        run: (echo "deploy to maven" && cd computer && mvn clean deploy -Papache-release,stage -DskipTests -e) || exit 
-        
-      - name: Release to svn
+      - name: Install SVN client
         if: ${{ inputs.deploy_svn }}
-        run: computer/computer-dist/scripts/apache-release.sh ${{ inputs.release_version }} ${{ secrets.RELEASE_USERNAME }} ${{ secrets.RELEASE_PASSWORD }}
+        working-directory: ${{ github.workspace }}
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends subversion
+
+      - name: Install selected JDK
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ inputs.java_version }}
+          distribution: temurin
+          overwrite-settings: false
+
+      - name: Validate source version and record SHA
+        run: |
+          python3 "$GITHUB_WORKSPACE/publisher/.github/workflows/scripts/check-maven-release.py" "$RELEASE_VERSION" pom.xml
+          echo "SOURCE_SHA=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
+          printf 'component=%s\nsource_sha=%s\nversion=%s\n' "$COMPONENT" "$(git rev-parse HEAD)" "$RELEASE_VERSION" \
+            | tee "$RUNNER_TEMP/release-context.txt"
+
+      - name: Prepare public Maven settings
+        run: |
+          printf '%s\n' '<settings xmlns="http://maven.apache.org/SETTINGS/1.0.0"/>' > "$RUNNER_TEMP/release-settings.xml"
+          chmod 600 "$RUNNER_TEMP/release-settings.xml"
+
+      - name: Configure Maven upload credentials
+        if: ${{ inputs.deploy_maven }}
+        env:
+          M2_SETTINGS: ${{ secrets.M2_SETTINGS }}
+        run: |
+          test -n "$M2_SETTINGS" || { echo 'M2_SETTINGS is required for Maven upload'; exit 1; }
+          printf '%s' "$M2_SETTINGS" > "$RUNNER_TEMP/release-settings.xml"
+          chmod 600 "$RUNNER_TEMP/release-settings.xml"
+
+      - name: Check effective Maven upload target and matching server id
+        if: ${{ inputs.deploy_maven }}
+        run: |
+          mvn -B -ntp -s "$RUNNER_TEMP/release-settings.xml" \
+            -Dmaven.repo.local="$RUNNER_TEMP/maven-repository" -Papache-release,stage \
+            help:effective-pom -Doutput="$RUNNER_TEMP/release-effective-pom.xml"
+          python3 "$GITHUB_WORKSPACE/publisher/.github/workflows/scripts/check-maven-release.py" \
+            "$RELEASE_VERSION" "$RUNNER_TEMP/release-effective-pom.xml" "$RUNNER_TEMP/release-settings.xml"
+
+      - name: Import signing key for uploads
+        if: ${{ inputs.deploy_maven || inputs.deploy_svn }}
+        id: import_gpg
+        uses: crazy-max/ghaction-import-gpg@v5
+        with:
+          gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
+
+      - name: Build without private credentials or signing
+        if: ${{ !inputs.deploy_maven }}
+        run: |
+          mvn -B -ntp -s "$RUNNER_TEMP/release-settings.xml" \
+            -Dmaven.repo.local="$RUNNER_TEMP/maven-repository" \
+            clean package -Pstage -DskipTests
+
+      - name: Upload full reactor to Maven staging
+        if: ${{ inputs.deploy_maven }}
+        run: |
+          test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+          mvn -B -ntp -s "$RUNNER_TEMP/release-settings.xml" \
+            -Dmaven.repo.local="$RUNNER_TEMP/maven-repository" \
+            clean deploy -Papache-release,stage -DskipTests -DdeployAtEnd=false
+
+      - name: Upload using the source repository release script
+        if: ${{ inputs.deploy_svn }}
+        env:
+          SVN_USERNAME: ${{ secrets.RELEASE_USERNAME }}
+          SVN_PASSWORD: ${{ secrets.RELEASE_PASSWORD }}
+        run: |
+          [[ -n $SVN_USERNAME && -n $SVN_PASSWORD ]]
+          test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+          git checkout --detach "$SOURCE_SHA"
+          git branch -f "release-$RELEASE_VERSION" "$SOURCE_SHA"
+          bash -e computer-dist/scripts/apache-release.sh "$RELEASE_VERSION" "$SVN_USERNAME" "$SVN_PASSWORD"
+
+      - name: Summarize release context
+        if: ${{ always() }}
+        working-directory: ${{ github.workspace }}
+        run: |
+          if test -f "$RUNNER_TEMP/release-context.txt"; then
+            cat "$RUNNER_TEMP/release-context.txt" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Remove personal Maven settings
+        if: ${{ always() }}
+        working-directory: ${{ github.workspace }}
+        run: rm -f "$RUNNER_TEMP/release-settings.xml" "$RUNNER_TEMP/release-effective-pom.xml"
