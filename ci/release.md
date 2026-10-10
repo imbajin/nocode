@@ -52,7 +52,7 @@ temporary copy beside the original before passing credentials.
 For Toolchain, provide `staging_repository` when consuming a specific Apache
 staging repository. Use its concrete repository URL, not the broad staging group.
 The workflow resolves SDK dependencies in an isolated Maven local repository and
-checks their repository origin. The mirror uses the existing Apache server ID
+checks both JAR and POM repository origins. The mirror uses the existing Apache server ID
 so Maven upload runs can authenticate without copying credentials; public builds
 remain anonymous. No local Server installation substitutes for
 remote staging consumption in the publisher workflow.

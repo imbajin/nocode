@@ -146,14 +146,18 @@ jobs:
           repository_key=$(python3 -c 'import hashlib, os; print("apache.releases.https-" + hashlib.sha1((os.environ["STAGING_REPOSITORY"].rstrip("/") + "/").encode()).hexdigest())')
           # The isolated local repository prevents installed SDKs masking missing staged artifacts.
           for artifact in hugegraph-common hugegraph-core hg-pd-client hg-pd-common hg-pd-grpc; do
-            mvn -N -B -ntp -U -s "$RUNNER_TEMP/release-settings.xml" \
-              -Dmaven.repo.local="$RUNNER_TEMP/maven-repository" -Pstage \
-              org.apache.maven.plugins:maven-dependency-plugin:3.8.1:get \
-              "-Dartifact=org.apache.hugegraph:$artifact:1.8.0" -Dtransitive=false
-            grep -Fx -e "$artifact-1.8.0.jar>apache.releases.https=" -e "$artifact-1.8.0.jar>$repository_key=" \
-              "$RUNNER_TEMP/maven-repository/org/apache/hugegraph/$artifact/1.8.0/_remote.repositories" > /dev/null || {
-              echo "SDK $artifact did not come from the selected staging repository"; exit 1;
-            }
+            # The POM controls transitive dependencies; verify it separately from the JAR.
+            for type in jar pom; do
+              mvn -N -B -ntp -U -s "$RUNNER_TEMP/release-settings.xml" \
+                -Dmaven.repo.local="$RUNNER_TEMP/maven-repository" -Pstage \
+                org.apache.maven.plugins:maven-dependency-plugin:3.8.1:get \
+                "-Dartifact=org.apache.hugegraph:$artifact:1.8.0:$type" -Dtransitive=false
+              grep -Fx -e "$artifact-1.8.0.$type>apache.releases.https=" \
+                -e "$artifact-1.8.0.$type>$repository_key=" \
+                "$RUNNER_TEMP/maven-repository/org/apache/hugegraph/$artifact/1.8.0/_remote.repositories" > /dev/null || {
+                echo "SDK $artifact $type did not come from the selected staging repository"; exit 1;
+              }
+            done
           done
 
       - name: Check effective Maven upload target and matching server id

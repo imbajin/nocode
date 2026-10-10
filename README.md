@@ -1,7 +1,5 @@
 # No Code
 
-HugeGraph release manager workflows: [publisher guide](docs/hugegraph-release.md).
-
 No code is the best way to write secure and reliable apps. Write nothing; deploy nowhere.
 And I will put some usefull app package here ~ (By whoami)
 
