@@ -1,7 +1,13 @@
-name: Inspect staging / explicitly close approved Server repository
+name: Inspect / close approved temporary HugeGraph staging
 on:
   workflow_dispatch:
     inputs:
+      close_repository:
+        description: Close an explicitly approved temporary candidate only
+        required: false
+        type: choice
+        default: ''
+        options: ['', 'orgapachehugegraph-1160', 'orgapachehugegraph-1161']
       close_server:
         description: Close only orgapachehugegraph-1160 (requires explicit user approval)
         required: true
@@ -23,6 +29,7 @@ jobs:
           MAVEN_SETTINGS: ${{ secrets.M2_SETTINGS }}
           EXPECTED_HASH: ${{ inputs.expected_core_sha512 }}
           CLOSE_SERVER: ${{ inputs.close_server }}
+          CLOSE_REPOSITORY: ${{ inputs.close_repository }}
         run: |
           python3 - <<'PY'
           import base64, hashlib, json, os, re, time, urllib.error, urllib.request
@@ -49,10 +56,14 @@ jobs:
               data = json.loads(get('https://repository.apache.org/service/local/staging/profile_repositories'))['data']
           except urllib.error.HTTPError as error:
               raise SystemExit(f'Nexus metadata HTTP status: {error.code}') from None
-          if os.environ['CLOSE_SERVER'] == 'true':
-              identifier = 'orgapachehugegraph-1160'
+          identifier = os.environ['CLOSE_REPOSITORY'] or ('orgapachehugegraph-1160' if os.environ['CLOSE_SERVER'] == 'true' else '')
+          if identifier:
+              required_modules = {'orgapachehugegraph-1160': {'hugegraph-core', 'hugegraph-common', 'hg-pd-client', 'hg-pd-common', 'hg-pd-grpc'},
+                                  'orgapachehugegraph-1161': {'hugegraph-client', 'hugegraph-loader', 'hugegraph-toolchain-dist'}}
+              if identifier not in required_modules:
+                  raise SystemExit('Repository was not approved')
               repository = next((row for row in data if row.get('repositoryId') == identifier), None)
-              if repository is None or not expected:
+              if repository is None or (identifier == 'orgapachehugegraph-1160' and not expected):
                   raise SystemExit('Approved Server repository and expected build hash are required')
               if repository.get('type') == 'open':
                   profile = repository.get('profileId', '')
@@ -61,13 +72,13 @@ jobs:
                   browse = 'https://repository.apache.org/service/local/repositories/' + identifier + '/content/org/apache/hugegraph/'
                   entries = json.loads(get(browse, json_content=True))['data']
                   modules = {row.get('relativePath', '').rstrip('/').split('/')[-1] for row in entries}
-                  if not {'hugegraph-core', 'hugegraph-common', 'hg-pd-client', 'hg-pd-common', 'hg-pd-grpc'} <= modules:
-                      raise SystemExit('Approved Server repository lacks required SDK modules')
-                  print(f'Closing approved Server repository {identifier}; {len(modules)} module directories')
+                  if not required_modules[identifier] <= modules:
+                      raise SystemExit('Approved repository lacks required modules')
+                  print(f'Closing approved temporary repository {identifier}; {len(modules)} module directories')
                   request = ET.Element('promoteRequest')
                   payload = ET.SubElement(request, 'data')
                   ET.SubElement(payload, 'stagedRepositoryId').text = identifier
-                  ET.SubElement(payload, 'description').text = 'Close Server 1.8.0 candidate for Toolchain SDK validation; explicitly approved'
+                  ET.SubElement(payload, 'description').text = 'Close temporary 1.8.0 candidate for downstream dependency validation; explicitly approved'
                   # Nexus calls this XML promoteRequest; finish performs close only.
                   url = 'https://repository.apache.org/service/local/staging/profiles/' + profile + '/finish'
                   headers = {'Authorization': 'Basic ' + token, 'Content-Type': 'application/xml', 'Accept': 'application/json'}
@@ -88,7 +99,25 @@ jobs:
               else:
                   activity = json.loads(get('https://repository.apache.org/service/local/staging/repository/' + identifier + '/activity', json_content=True))
                   print('Close activity:', json.dumps(activity))
-                  raise SystemExit('Server repository did not reach closed state')
+                  raise SystemExit('Temporary repository did not reach closed state')
+          if os.environ['CLOSE_REPOSITORY'] == 'orgapachehugegraph-1161':
+              import subprocess
+              base = 'https://repository.apache.org/content/repositories/orgapachehugegraph-1161/org/apache/hugegraph/'
+              for artifact in ('hugegraph-client', 'hugegraph-loader'):
+                  url = base + artifact + '/1.8.0/' + artifact + '-1.8.0.jar'
+                  jar = get(url, False)
+                  digest = get(url + '.sha1', False).decode().split()[0]
+                  if not jar.startswith(b'PK') or hashlib.sha1(jar).hexdigest() != digest:
+                      raise SystemExit('Invalid candidate JAR or checksum: ' + artifact)
+                  get(url.replace('.jar', '.pom'), False)
+                  print(artifact + ': anonymous JAR/POM access and SHA1 check passed; SHA512=' + hashlib.sha512(jar).hexdigest())
+                  if artifact == 'hugegraph-loader':
+                      path = Path(os.environ['RUNNER_TEMP']) / 'hugegraph-loader-1.8.0.jar'
+                      path.write_bytes(jar)
+                      api = subprocess.check_output(['javap', '-classpath', str(path), 'org.apache.hugegraph.loader.executor.LoadContext'], text=True)
+                      if 'forOffline(' not in api:
+                          raise SystemExit('Staged Loader lacks the required offline API')
+                      print('Staged Loader forOffline API confirmed')
           results = []
           for repository in data:
               identifier = repository.get('repositoryId', '')
