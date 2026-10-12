@@ -175,7 +175,14 @@ jobs:
           test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
           git checkout --detach "$SOURCE_SHA"
           git branch -f "release-$RELEASE_VERSION" "$SOURCE_SHA"
-          bash -e install-dist/scripts/apache-release.sh "$RELEASE_VERSION" "$SVN_USERNAME" "$SVN_PASSWORD"
+          # Legacy refs use apache-hugegraph-*, which also matches other components.
+          # Patch a sibling copy so archive contents and dirname-based paths stay intact.
+          script=install-dist/scripts/apache-release-ci.sh
+          trap 'rm -f "$script"' EXIT
+          # shellcheck disable=SC2016
+          sed 's@/apache-${REPO}-\*$@/apache-${REPO}-"${RELEASE_VERSION}"*@' \
+            install-dist/scripts/apache-release.sh > "$script"
+          bash -e "$script" "$RELEASE_VERSION" "$SVN_USERNAME" "$SVN_PASSWORD"
 
       - name: Summarize release context
         if: ${{ always() }}
